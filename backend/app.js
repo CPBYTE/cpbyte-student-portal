@@ -54,6 +54,16 @@ app.use("/api/v1/schedule", scheduleRoutes)
 
 app.use("/api/v1/Tracker", trackerRoutes);
 
+app.get("/api/v1/health", (req, res)=>{
+
+  res.status(200).json({
+    status: "ok",
+    uptime: process.uptime(),
+    timestamp: new Date(),
+  });
+
+})
+
 app.use(errorHandler);
 
 app.get("/api/v1/delete", (req, res)=>{
