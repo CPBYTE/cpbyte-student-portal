@@ -2,17 +2,13 @@ import jwt from "jsonwebtoken";
 
 const isCoordinator = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  if (!authHeader) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Authorization header missing" });
-  }
+  const tokenFromHeader = authHeader ? authHeader.split(" ")[1] : null;
+  const token = tokenFromHeader || req.cookies?.token || req.cookies?.accessToken;
 
-  const token = authHeader.split(" ")[1];
   if (!token) {
     return res
       .status(401)
-      .json({ success: false, message: "Bearer token missing" });
+      .json({ success: false, message: "Authorization token missing" });
   }
 
   try {

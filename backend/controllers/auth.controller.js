@@ -33,19 +33,21 @@ export const login = asyncHandler(async (req, res) => {
     }
   });
 
+  const isProduction = process.env.NODE_ENV === "production";
+
   res.cookie("token", token, {
     httpOnly: true,
-    secure: true,
-    sameSite: "None",
-    path: "/api/v1/auth",
+    secure: isProduction,
+    sameSite: isProduction ? "None" : "Lax",
+    path: "/",
     maxAge: 60 * 60 * 1000, // 1 hour
   });
 
   res.cookie("refreshToken", rawRefresh, {
     httpOnly: true,
-    secure: true,
-    sameSite: 'None',
-    path: "/api/v1/auth",
+    secure: isProduction,
+    sameSite: isProduction ? 'None' : 'Lax',
+    path: "/",
     maxAge: REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
   });
 
@@ -121,13 +123,13 @@ export const refresh = asyncHandler(async (req, res) => {
       return res.status(401).json({ error: 'Refresh failed', reason: result.reason });
     }
 
-
+    const isProduction=process.env.NODE_ENV==="production";
     res.cookie('refreshToken', result.newRaw, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'None',
-      path: "/api/v1/auth",
-      maxAge: REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'None' : 'Lax',
+        path: "/",
+        maxAge: REFRESH_TOKEN_DAYS * 24 * 60 * 60 * 1000,
     });
     // console.log("Sent new refresh token cookie:", result.newRaw);
 
@@ -213,11 +215,19 @@ export const logout = asyncHandler(async (req, res) => {
     });
   }
 
+  const isProductionClear = process.env.NODE_ENV === "production";
   res.clearCookie("refreshToken", {
     httpOnly: true,
-    secure: true,
-    sameSite: "None",
-    path: "/api/v1/auth",
+    secure: isProductionClear,
+    sameSite: isProductionClear ? "None" : "Lax",
+    path: "/",
+  });
+
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: isProductionClear,
+    sameSite: isProductionClear ? "None" : "Lax",
+    path: "/",
   });
 
   res.status(200).json({ success: true, message: "Logout successful" });

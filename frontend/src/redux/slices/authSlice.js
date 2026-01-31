@@ -1,11 +1,12 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import {axiosInstance} from "../../lib/axios";
+import {axiosInstance, setAccessToken} from "../../lib/axios";
 
 export const loginUser = createAsyncThunk(
   "auth/login",
   async ({ library_id, password }, { rejectWithValue }) => {
     try {
       const res = await axiosInstance.post("/auth/login", { library_id, password });
+      setAccessToken(res.data.data);
       localStorage.setItem("token", res.data.data);
       return res.data;
     } catch (err) {
@@ -18,15 +19,11 @@ export const logoutUser = createAsyncThunk(
     "auth/logout",
     async(_,{rejectWithValue})=>{
         try {
-            const token = localStorage.getItem("token")
-            const res = await axiosInstance.get("/auth/logout",{
-                headers:{
-                    Authorization: `Bearer ${token}`
-                }
-            })
-        return res.data;
+          const res = await axiosInstance.get("/auth/logout");
+          setAccessToken(null);
+          return res.data;
         } catch (err) {
-            return rejectWithValue(err.response?.data?.message || "Logout failed");
+          return rejectWithValue(err.response?.data?.message || "Logout failed");
         }
     }
 )

@@ -8,6 +8,10 @@ export const axiosInstance = axios.create({
   withCredentials: true,
 });
 
+if (!import.meta.env.VITE_BACKEND_URL) {
+  axiosInstance.defaults.baseURL = 'http://localhost:8080/api/v1';
+}
+
 let accessToken = null;
 export const setAccessToken=function(token) {
   accessToken = token;

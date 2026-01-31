@@ -2,6 +2,8 @@ import express from "express";
 import { config } from "dotenv";
 import cron from "node-cron";
 import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 
 
 import authRoutes from "./routes/auth.route.js";
@@ -21,6 +23,19 @@ config();
 
 const app = express();
 
+app.set('trust proxy', 1);
+
+app.use(helmet());
+
+// rate limiting 
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // limit each IP to 200 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
+
 const CRON_TIMING = process.env.CRON_TIMING || "0 */2 * * *";
 cron.schedule(CRON_TIMING, async () => {
   console.log("==============Refreshing profiles==============");
@@ -29,11 +44,17 @@ cron.schedule(CRON_TIMING, async () => {
 });
 
 app.use(express.json({ limit: "20mb" }));
+const allowed = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,https://cpbytestudentportal.netlify.app").split(',');
 app.use(
   cors({
-    origin: ["https://cpbytestudentportal.netlify.app",
-      "http://localhost:5173"
-    ],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (allowed.indexOf(origin) === -1) {
+        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
     credentials: true,
   })
 );
