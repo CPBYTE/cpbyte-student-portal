@@ -12,10 +12,11 @@ import * as THREE from "three";
 const MarkAttendance = () => {
   const [loading, setLoading] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState({});
-  const [toggleAll, setToggleAll] = useState(false);
+  const [activeSelector, setActiveSelector] = useState(null);
   const [isMarked, setIsMarked] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [permissionRequests, setPermissionRequests] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const { subject } = useSelector((state) => state.checkStatus);
   const [DSA, setDSA] = useState(subject);
@@ -28,16 +29,49 @@ const MarkAttendance = () => {
   const vantaRef = useRef(null);
   const vantaEffect = useRef(null);
 
-  const markAllPresent = () => {
-    setToggleAll(!toggleAll);
-    if (!toggleAll) {
+  const handleGlobalPresent = () => {
+    if (activeSelector === "PRESENT") {
+      setActiveSelector(null);
+      setSelectedStatus({});
+    } else {
+      setActiveSelector("PRESENT");
       const updated = {};
       permissionRequests.forEach((item) => {
         updated[item.library_id] = "PRESENT";
       });
       setSelectedStatus(updated);
+    }
+  };
+
+  const handleGlobalAbsent = () => {
+    if (activeSelector === "ABSENT") {
+      setActiveSelector(null);
+
+      const updated = { ...selectedStatus };
+      Object.keys(updated).forEach((key) => {
+        if (updated[key] === "ABSENT_WITHOUT_REASON") {
+          delete updated[key];
+        }
+      });
+      setSelectedStatus(updated);
     } else {
-      setSelectedStatus({});
+      setActiveSelector("ABSENT");
+      const updated = { ...selectedStatus };
+      let count = 0;
+
+      permissionRequests.forEach((item) => {
+        if (!updated[item.library_id]) {
+          updated[item.library_id] = "ABSENT_WITHOUT_REASON";
+          count++;
+        }
+      });
+
+      setSelectedStatus(updated);
+      if (count > 0) {
+        toast.success(`Marked ${count} remaining members as Absent`);
+      } else {
+        toast("All members are already marked");
+      }
     }
   };
 
@@ -67,7 +101,6 @@ const MarkAttendance = () => {
         console.error("Failed to load Vanta animation:", error);
       }
     };
-
     loadVanta();
     return () => {
       if (vantaEffect.current) {
@@ -113,16 +146,12 @@ const MarkAttendance = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
     const result = permissionRequests.map((req) => ({
       library_id: req.library_id,
       status: selectedStatus[req.library_id] || "ABSENT_WITHOUT_REASON",
     }));
 
-    let present = 0,
-      absent = 0,
-      excused = 0;
-
+    let present = 0, absent = 0, excused = 0;
     result.forEach(({ status }) => {
       if (status === "PRESENT") present++;
       else if (status === "ABSENT_WITH_REASON") excused++;
@@ -153,11 +182,11 @@ const MarkAttendance = () => {
     } else {
       toast.error("Failed to mark attendance", { id: toastId });
     }
-
     setIsSubmitting(false);
   };
 
   const handleStatusChange = (id, status) => {
+    setActiveSelector(null);
     setSelectedStatus((prev) => ({
       ...prev,
       [id]: status,
@@ -167,15 +196,22 @@ const MarkAttendance = () => {
   useEffect(() => {
     setLoading(true);
     setDSA(subject);
-
     const timeout = setTimeout(() => {
       const members = DSA ? allMembers?.dsaMembers : allMembers?.devMembers;
       setPermissionRequests(Array.isArray(members) ? members : []);
       setLoading(false);
     }, 800);
-
     return () => clearTimeout(timeout);
   }, [DSA, isMarked, subject, allMembers]);
+
+  const filteredRequests = permissionRequests.filter((req) => {
+    if (!req || !req.name || !req.library_id) return false;
+    const query = searchQuery.toLowerCase();
+    return (
+      req.name.toLowerCase().includes(query) ||
+      String(req.library_id).toLowerCase().includes(query)
+    );
+  });
 
   if (role !== "COORDINATOR") {
     return (
@@ -190,11 +226,8 @@ const MarkAttendance = () => {
 
   return (
     <div className="relative min-h-screen w-full text-white pb-16 overflow-hidden bg-gray-950">
-      <div
-        ref={vantaRef}
-        className="fixed inset-0 z-0 w-full h-full"
-      />
-      
+      <div ref={vantaRef} className="fixed inset-0 z-0 w-full h-full" />
+
       <div className="relative z-10 p-4 mt-10 md:mt-0 md:p-8 flex flex-col items-center min-h-screen">
         <div className="absolute top-14 sm:top-6 right-6 bg-[#1c1c1c]/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 flex items-center gap-2 shadow z-10">
           <div className="w-8 h-8 rounded-full bg-white text-black font-bold flex items-center justify-center">
@@ -215,26 +248,61 @@ const MarkAttendance = () => {
           </div>
 
           {isMarked === 1 && (
-            <div className="flex flex-col md:flex-row justify-between w-full items-start md:items-center">
+            <div className="flex flex-col md:flex-row justify-between w-full items-start md:items-end mb-4">
               <div>
                 <div className="inline-block mb-2 px-4 py-1 rounded-md bg-[#0ec1e7] text-black font-semibold text-sm shadow">
                   {DSA ? "DSA Attendance" : "DEV Attendance"}
                 </div>
-                <p className="text-sm text-gray-300 mt-2 mb-6">
-                  {permissionRequests.length} {DSA ? "DSA" : "DEV"} Members
+                <p className="text-sm text-gray-300 mt-2">
+                  {filteredRequests.length} {DSA ? "DSA" : "DEV"} Members Found
                   <br />
                   Attendance for Date:{" "}
                   <span className="font-medium">{new Date().toDateString()}</span>
                 </p>
               </div>
-              <div className="flex gap-2 items-center p-4">
-                <div className="text-lg font-semibold">Mark all present</div>
-                <input
-                  type="checkbox"
-                  onChange={markAllPresent}
-                  checked={toggleAll}
-                  className="w-4 h-4 text-[#0ec1e7] bg-gray-700 border-gray-600 rounded focus:ring-[#0ec1e7] cursor-pointer"
-                />
+
+              <div className="flex flex-col md:flex-row gap-4 items-end md:items-center mt-4 md:mt-0 w-full md:w-auto">
+                <div className="relative w-full md:w-64">
+                  <input
+                    type="text"
+                    placeholder="Search Name or ID..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-[#1c1c1c]/60 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-[#0ec1e7] transition-colors"
+                  />
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute right-3 top-2.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+
+                <div className="flex gap-4">
+                  <button
+                    type="button"
+                    onClick={handleGlobalAbsent}
+                    className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 border whitespace-nowrap font-medium ${activeSelector === "ABSENT"
+                      ? "bg-red-600 text-white border-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)]"
+                      : "bg-red-900/20 text-red-400 border-red-500/30 hover:bg-red-900/40"
+                      }`}
+                  >
+                    {activeSelector === "ABSENT" ? "Unselect Absent" : "Mark Rest Absent"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleGlobalPresent}
+                    className={`px-4 py-2 rounded-lg text-sm transition-all duration-200 border whitespace-nowrap font-medium flex items-center gap-2 ${activeSelector === "PRESENT"
+                      ? "bg-green-600 text-white border-green-600 shadow-[0_0_15px_rgba(22,163,74,0.5)]"
+                      : "bg-green-900/20 text-green-400 border-green-500/30 hover:bg-green-900/40"
+                      }`}
+                  >
+                    <span>{activeSelector === "PRESENT" ? "Unselect Present" : "Mark All Present"}</span>
+                    {activeSelector === "PRESENT" && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -259,59 +327,67 @@ const MarkAttendance = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#2c2f34]">
-                        {permissionRequests
-                          .filter((req) => req && req.name && req.library_id)
-                          .map((req, idx) => (
-                            <tr key={req.library_id} className="border-b border-[#2c2f34]">
-                              <td className="px-4 py-4">{idx + 1}</td>
-                              <td className="px-4 py-4 h-full">
-                                <div className="flex items-center justify-start gap-2 h-full">
-                                  <img
-                                    src={noimage}
-                                    className="h-6 w-6 rounded-full object-cover"
-                                    alt="Member"
-                                  />
-                                  <span>{req.name}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-4">{req.library_id}</td>
-                              <td className="px-4 py-4">
-                                {DSA ? req.dsaAttendance : req.devAttendance}%
-                              </td>
-                              <td className="px-4 py-4">
-                                <div className="flex gap-2 flex-wrap justify-center">
-                                  {["PRESENT", "ABSENT_WITHOUT_REASON", "ABSENT_WITH_REASON"].map(
-                                    (status) => {
-                                      const isSelected =
-                                        selectedStatus[req.library_id] === status;
-                                      let bg = {
-                                        PRESENT: isSelected ? "bg-green-600" : "bg-green-900",
-                                        ABSENT_WITHOUT_REASON: isSelected
-                                          ? "bg-red-600"
-                                          : "bg-red-900",
-                                        ABSENT_WITH_REASON: isSelected
-                                          ? "bg-blue-600"
-                                          : "bg-blue-900",
-                                      }[status];
+                        {filteredRequests.map((req, idx) => (
+                          <tr key={req.library_id} className="border-b border-[#2c2f34]">
+                            <td className="px-4 py-4">{idx + 1}</td>
+                            <td className="px-4 py-4 h-full">
+                              <div className="flex items-center justify-start gap-2 h-full">
+                                <img
+                                  src={noimage}
+                                  className="h-6 w-6 rounded-full object-cover"
+                                  alt="Member"
+                                />
+                                <span>{req.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-4">{req.library_id}</td>
+                            <td className="px-4 py-4">
+                              {DSA ? req.dsaAttendance : req.devAttendance}%
+                            </td>
+                            <td className="px-4 py-4">
+                              <div className="flex gap-2 flex-wrap justify-center">
+                                {["PRESENT", "ABSENT_WITHOUT_REASON", "ABSENT_WITH_REASON"].map(
+                                  (status) => {
+                                    const isSelected = selectedStatus[req.library_id] === status;
 
-                                      return (
-                                        <button
-                                          key={status}
-                                          type="button"
-                                          onClick={() =>
-                                            handleStatusChange(req.library_id, status)
-                                          }
-                                          className={`text-xs px-2 py-1 rounded text-white ${bg} hover:opacity-80 transition-opacity cursor-pointer`}
-                                        >
-                                          {status=="ABSENT_WITHOUT_REASON"?"Absent":status=="ABSENT_WITH_REASON"?"Excused":"Prsent"}
-                                        </button>
-                                      );
+                                    let btnStyle = "";
+                                    if (status === "PRESENT") {
+                                      btnStyle = isSelected
+                                        ? "bg-green-500 text-white shadow-[0_0_10px_rgba(34,197,94,0.6)] font-bold scale-105 border-transparent"
+                                        : "bg-green-950/20 text-green-500/70 border border-green-500/20 hover:border-green-500/60";
+                                    } else if (status === "ABSENT_WITHOUT_REASON") {
+                                      btnStyle = isSelected
+                                        ? "bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.6)] font-bold scale-105 border-transparent"
+                                        : "bg-red-950/20 text-red-500/70 border border-red-500/20 hover:border-red-500/60";
+                                    } else { 
+                                      btnStyle = isSelected
+                                        ? "bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.6)] font-bold scale-105 border-transparent"
+                                        : "bg-blue-950/20 text-blue-500/70 border border-blue-500/20 hover:border-blue-500/60";
                                     }
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+
+                                    return (
+                                      <button
+                                        key={status}
+                                        type="button"
+                                        onClick={() => handleStatusChange(req.library_id, status)}
+                                        className={`text-xs px-3 py-1.5 rounded transition-all duration-200 ${btnStyle}`}
+                                      >
+                                        {status === "ABSENT_WITHOUT_REASON" ? "Absent" : status === "ABSENT_WITH_REASON" ? "Excused" : "Present"}
+                                      </button>
+                                    );
+                                  }
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredRequests.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="py-8 text-center text-gray-400">
+                              No members found matching "{searchQuery}"
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -338,4 +414,4 @@ const MarkAttendance = () => {
   );
 };
 
-export default MarkAttendance;// Test update - July 18
+export default MarkAttendance;
