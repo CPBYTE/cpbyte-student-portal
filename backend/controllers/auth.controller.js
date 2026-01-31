@@ -232,3 +232,15 @@ export const logout = asyncHandler(async (req, res) => {
 
   res.status(200).json({ success: true, message: "Logout successful" });
 });
+
+export const debugCookies = asyncHandler(async (req, res) => {
+  res.json({
+    cookies: req.cookies,
+    headers: {
+      'user-agent': req.get('User-Agent'),
+      'origin': req.get('origin'),
+      'referer': req.get('referer'),
+    },
+    message: 'Debug: cookies are being sent if they appear above'
+  });
+});

@@ -34,7 +34,11 @@ axiosInstance.interceptors.response.use(
   response => response,
   async error => {
     const originalRequest = error.config;
-    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+    
+    const noRefreshPaths = ['/auth/login', '/auth/register', '/auth/logout'];
+    const isNoRefreshPath = noRefreshPaths.some(path => originalRequest.url?.includes(path));
+    
+    if (error.response && error.response.status === 401 && !originalRequest._retry && !isNoRefreshPath) {
       // attempt refresh
       if (isRefreshing) {
         // queue it

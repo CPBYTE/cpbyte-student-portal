@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import logo from '../assets/CPBYTE_LOGO.jpg';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser } from '../redux/slices/authSlice';
+import { loginUser, clearError } from '../redux/slices/authSlice';
 import toast from 'react-hot-toast';
 import * as THREE from 'three';
 
@@ -58,14 +58,20 @@ function LoginPage() {
     const toastId = toast.loading("Logging in...");
     const library_id = e.target[0].value;
     const password = e.target[1].value;
-    if (!library_id || !password) return;
+    if (!library_id || !password) {
+      toast.error("Please fill in all fields", { id: toastId });
+      return;
+    }
+
+    // clear any previous error
+    dispatch(clearError());
 
     const res = await dispatch(loginUser({ library_id, password }));
     if (res.meta.requestStatus === "fulfilled") {
       navigate('/');
       toast.success("Logged in successfully", { id: toastId });
     } else {
-      toast.error("Logging failed", { id: toastId });
+      toast.error(res.payload || "Login failed", { id: toastId });
     }
   };
 
@@ -82,7 +88,7 @@ function LoginPage() {
 
         {error !== null && (
           <div className='w-full bg-red-500 text-white rounded-xl overflow-hidden'>
-            <h1 className='p-2 w-full text-center'>Login Failed!!</h1>
+            <h1 className='p-2 w-full text-center'>{error}</h1>
           </div>
         )}
 

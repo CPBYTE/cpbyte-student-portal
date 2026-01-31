@@ -39,7 +39,10 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers:{
-    authRefresh:()=>initialState
+    authRefresh:()=>initialState,
+    clearError:(state)=>{
+      state.error=null;
+    }
   },
   extraReducers: (builder) => {
     builder
@@ -73,5 +76,5 @@ const authSlice = createSlice({
   },
 });
 
-export const {authRefresh} = authSlice.actions
+export const {authRefresh, clearError} = authSlice.actions
 export default authSlice.reducer;
