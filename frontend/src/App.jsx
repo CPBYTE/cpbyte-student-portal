@@ -41,26 +41,27 @@ function App() {
   // }, [navigate, location.pathname]);
 
   useEffect(() => {
-  if (location.pathname === "/login" || location.pathname === "/register") return;
+    let isMounted = true;
 
-  let refreshing = false;
+    (async () => {
+      try {
+        const res = await axiosInstance.post("/auth/refresh", {}, { withCredentials: true });
+        if (isMounted) {
+          setAccessToken(res.data.accessToken);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.log("No refresh token or expired → redirecting to login", err);
+          toast.error("Session expired, please login again.");
+          navigate("/login");
+        }
+      }
+    })();
 
-  (async () => {
-    if (refreshing) return; // prevent duplicate calls
-    refreshing = true;
-
-    try {
-      const res = await axiosInstance.post("/auth/refresh", {}, { withCredentials: true });
-      setAccessToken(res.data.accessToken);
-    } catch (err) {
-      console.log("No refresh token or expired → redirecting to login", err);
-      toast.error("Session expired, please login again.");
-      navigate("/login");
-    } finally {
-      refreshing = false;
-    }
-  })();
-}, [navigate, location.pathname]);
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
 
 
