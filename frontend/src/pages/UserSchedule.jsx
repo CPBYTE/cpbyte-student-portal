@@ -156,7 +156,7 @@ const UserSchedule = () => {
           </header>
           {/* Weekday Names Row */}
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row gap-4">
-            <div className="w-full md:w-[75%]">
+            <div className="w-full md:flex-1">
               <div className="grid grid-cols-7 gap-1 mb-1 md:mb-2">
                 {weekdays.map((day, index) => {
                   const isWeekend = day === "Sat" || day === "Sun";

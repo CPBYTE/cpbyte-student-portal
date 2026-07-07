@@ -66,25 +66,38 @@ function Navbar() {
   return (
     <>
       {isMobile && (
-        <div className={`fixed top-4 ${isOpen?"right-4":"left-4"} z-50`}>
+        <div className="fixed top-0 left-0 right-0 h-16 bg-[#070b0f] border-b border-gray-800 flex items-center justify-between px-4 z-30 shadow-md">
+          {!isOpen && (
+            <button 
+              onClick={() => setIsOpen(true)} 
+              className="p-2 bg-[#212327] rounded-md text-white hover:bg-[#0ec1e7] transition-colors duration-200"
+            >
+              <Menu size={24} />
+            </button>
+          )}
+          {isOpen && <div className="w-10"></div>}
+          
+          <div className="flex items-center gap-2">
+            <img src={logo} alt="CPBYTE Logo" className="w-8 h-8 rounded-full" />
+            <h2 className="text-white text-lg font-semibold">
+              CP<span className="text-[#0ec1e7]">BYTE</span>
+            </h2>
+          </div>
+          <div className="w-10"></div>
+        </div>
+      )}
+      {isMobile && isOpen && (
+        <div className="fixed top-4 right-4 z-50">
           <button 
-            onClick={() => setIsOpen(!isOpen)} 
+            onClick={() => setIsOpen(false)} 
             className="p-2 bg-[#212327] rounded-md text-white hover:bg-[#0ec1e7] transition-colors duration-200"
           >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
+            <X size={24} />
           </button>
         </div>
       )}
-      {isMobile && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-40 flex items-center gap-2">
-          <img src={logo} alt="CPBYTE Logo" className="w-8 h-8 rounded-full" />
-          <h2 className="text-white text-lg font-semibold">
-            CP<span className="text-[#0ec1e7]">BYTE</span>
-          </h2>
-        </div>
-      )}
       <div 
-        className={`Sidebar bg-[#070b0f] border-r border-gray-600 min-h-screen flex fixed justify-between overflow-hidden z-40 transition-all duration-300 ease-in-out
+        className={`Sidebar bg-[#070b0f] border-r border-gray-600 min-h-screen flex fixed justify-between overflow-hidden z-50 transition-all duration-300 ease-in-out
           ${isMobile 
             ? isOpen 
               ? 'w-64 opacity-100' 
@@ -174,7 +187,7 @@ function Navbar() {
       </div>
       {isMobile && isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-30" 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40" 
           onClick={() => setIsOpen(false)}
         />
       )}

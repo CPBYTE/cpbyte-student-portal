@@ -12,7 +12,7 @@ function DetailCard() {
   const user = useSelector((state) => state.dashboard.data);
 
   return (
-    <div className="w-full h-fit text-white p-2 md:p-5 mt-14 md:mt-5 md:mr-5">
+    <div className="w-full h-fit text-white p-2 md:p-5 mt-4 md:mt-5 md:mr-5">
       {/* Gradient for CircularProgressbar */}
       <svg style={{ height: 0 }}>
         <defs>
@@ -44,7 +44,7 @@ function DetailCard() {
               <span className="text-2xl font-semibold">{user?.name}</span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 md:gap-4">
               <InfoField label="Role" value={user?.role} />
               <InfoField label="DSA/DEV" value={`${user?.domain_dsa} / ${user?.domain_dev}`} />
               <InfoField label="Email" value={user?.email} tooltip />

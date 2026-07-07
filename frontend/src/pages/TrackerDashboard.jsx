@@ -79,7 +79,7 @@ function TrackerDashboard() {
       ref={vantaRef}
       className="flex items-center justify-center min-h-screen w-full bg-gray-950"
     >
-      <div className="flex-1 p-8 md:p-8 min-h-screen w-full z-10">
+      <div className="flex-1 p-4 md:p-8 min-h-screen w-full z-10">
         <div className="mb-6 md:mb-14 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-4 lg:pt-0">
           <div>
             <h1 className="text-2xl md:text-3xl font-semibold text-white">
@@ -164,7 +164,7 @@ function TrackerDashboard() {
             <div className="border-t border-gray-600 my-4" />
 
             <div className="flex flex-col lg:flex-row justify-between items-center w-full my-4 md:my-5 md:mb-10 gap-4">
-              <div className="space-y-8 text-base flex lg:flex-col flex-row justify-between w-full font-semibold md:text-xl px-10">
+              <div className="text-base flex lg:flex-col flex-row gap-4 lg:gap-8 justify-between w-full font-semibold md:text-xl px-10">
                 <div className="text-[#00e676] flex">
                   Easy:
                   <div className="text-white">{data?.leetcode.easy}</div>
@@ -455,9 +455,7 @@ function TrackerDashboard() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full">
-                  {showAll
-                    ? data.projects
-                    : data.projects.slice(0, 3)?.map((project, index) => (
+                  {(showAll ? data.projects : data.projects.slice(0, 3))?.map((project, index) => (
                       <div
                         key={index}
                         className="rounded-lg border border-[#0ec1e7]/60 flex flex-col gap-2 transition-transform duration-300 hover:scale-105"

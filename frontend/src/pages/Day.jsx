@@ -57,7 +57,7 @@ function Day({
       onClick={() => day && setSelectedDate(day)}
     >
       {day && (
-        <div className="relative -z-2 group w-full h-full backdrop-blur cursor-pointer">
+        <div className="relative z-0 group w-full h-full backdrop-blur cursor-pointer">
           {/* Date Number */}
           <div
             className={`text-xs p-1 rounded-full w-5 h-5 md:w-6 md:h-6 flex items-center justify-center mx-auto ${

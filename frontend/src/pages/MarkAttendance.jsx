@@ -276,7 +276,7 @@ const MarkAttendance = () => {
     <div className="relative min-h-screen w-full text-white pb-16 overflow-hidden bg-gray-950">
       <div ref={vantaRef} className="fixed inset-0 z-0 w-full h-full" />
 
-      <div className="relative z-10 p-4 mt-10 md:mt-0 md:p-8 flex flex-col items-center min-h-screen">
+      <div className="relative z-10 p-4 md:p-8 flex flex-col items-center min-h-screen">
         <div className="absolute top-14 sm:top-6 right-6 bg-[#1c1c1c]/40 backdrop-blur-md px-4 py-2 rounded-xl border border-white/10 flex items-center gap-2 shadow z-10">
           <div className="w-8 h-8 rounded-full bg-white text-black font-bold flex items-center justify-center">
             {name?.charAt(0)?.toUpperCase() || "C"}
@@ -390,8 +390,8 @@ const MarkAttendance = () => {
                     <SkeletonLoader />
                   ) : (
                     <form onSubmit={handleSubmit}>
-                      <div className="max-h-[600px] overflow-y-auto border border-[#2c2f34] rounded">
-                        <table className="min-w-full text-sm text-white text-center table-fixed">
+                      <div className="max-h-[600px] overflow-y-auto overflow-x-auto border border-[#2c2f34] rounded">
+                        <table className="min-w-full text-sm text-white text-center table-fixed" style={{ minWidth: "650px" }}>
                           <thead className="sticky top-0 bg-[#1f1f1f] z-10">
                             <tr>
                               <th className="px-4 py-2 w-[8%]">S No.</th>

@@ -245,7 +245,7 @@ const Leaderboard = () => {
                         <th className="py-4 px-6 text-gray-300 text-sm font-bold uppercase tracking-wider">Total</th>
                         <th className="py-4 px-6 text-gray-300 text-sm font-bold uppercase tracking-wider">Year</th>
                         <th className="py-4 px-6 text-gray-300 text-sm font-bold uppercase tracking-wider">Language</th>
-                        <th className="py-4 px-6 text-gray-300 text-sm font-bold uppercase tracking-wider">Previous</th>
+                        <th className="py-4 px-6 text-gray-300 text-sm font-bold uppercase tracking-wider hidden sm:table-cell">Previous</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -274,7 +274,7 @@ const Leaderboard = () => {
 
                             <td className="py-3 px-3 sm:py-4 sm:px-6 text-white"><span className={`px-2 py-1 text-xs sm:px-3 sm:py-1 sm:text-sm rounded-full ${item.language === "CPP" ? "bg-blue-500/20 text-blue-300" : "bg-green-500/20 text-green-300"}`}>{item.language}</span></td>
 
-                            <td className="py-4 px-6">
+                            <td className="py-4 px-6 hidden sm:table-cell">
                               <div className="flex gap-1">
                                 {item.previous?.map((day, j) => (
                                   <div key={j} className={`w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 rounded-md flex items-center justify-center ${day === 0 ? "bg-red-500/30" : "bg-green-500/30"}`}>
