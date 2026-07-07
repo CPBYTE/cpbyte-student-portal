@@ -28,11 +28,33 @@ export const markAttendance = createAsyncThunk(
   }
 );
 
+export const fetchOverallAttendance = createAsyncThunk(
+  "markAttendance/fetchOverallAttendance",
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await axiosInstance.get("/coordinator/attendance", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return res.data.data;
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch overall attendance summary"
+      );
+    }
+  }
+);
+
 const markAttendanceSlice = createSlice({
   name: "marAttendance",
   initialState: {
     loading: false,
     error: null,
+    overallAttendance: [],
+    overallLoading: false,
+    overallError: null,
   },
   extraReducers: (builder) => {
     builder
@@ -49,6 +71,20 @@ const markAttendanceSlice = createSlice({
             state.loading=false,
             state.error=action.payload
         })
+
+        .addCase(fetchOverallAttendance.pending, (state) => {
+            state.overallLoading = true;
+            state.overallError = null;
+        })
+        .addCase(fetchOverallAttendance.fulfilled, (state, action)=>{
+            state.overallLoading = false;
+            state.overallAttendance = action.payload;
+            state.overallError = null;
+        })
+        .addCase(fetchOverallAttendance.rejected,(state, action)=>{
+            state.overallLoading = false;
+            state.overallError = action.payload;
+        });
   },
 });
 

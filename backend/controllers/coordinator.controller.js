@@ -22,10 +22,13 @@ export const allAttendance = asyncHandler(async (req, res) => {
     allUsers.map(async (user) => ({
       name: user.name,
       library_id: user.library_id,
+      dsaAttendance: user.dsaAttendance,
+      devAttendance: user.devAttendance,
       attendances: user.attendances ?
         user.attendances.map((attendance) => ({
           date: attendance.date,
           status: attendance.status,
+          subject: attendance.subject,
         })) : [],
     })))
 

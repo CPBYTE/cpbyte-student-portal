@@ -117,7 +117,7 @@ function Navbar() {
                 <GrSchedulePlay size={isMobile ? 18 : 20} />
                 <h2>Schedule</h2>
               </Link>
-              {role === "COORDINATOR" && 
+              {(role === "COORDINATOR" || role === "LEAD") && 
                 <Link
                   to={"Attendance"}
                   className={`flex items-center gap-2 hover:bg-[#212327] ${getActiveClass("/Attendance")} hover:text-[#0ec1e7] duration-200 w-full p-2 pl-4 md:pl-6 rounded-md cursor-pointer text-sm md:text-base`}

@@ -44,7 +44,7 @@ function UnauthProtected({children}) {
       if(res1.meta.requestStatus==="fulfilled"&&res2.meta.requestStatus==="fulfilled")
         setLoading(false)
     }
-    if(data && data.role=="COORDINATOR")
+    if(data && (data.role=="COORDINATOR" || data.role=="LEAD"))
     membersOfDomain()
 
     if(data)

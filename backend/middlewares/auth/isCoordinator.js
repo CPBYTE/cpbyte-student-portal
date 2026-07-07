@@ -14,7 +14,7 @@ const isCoordinator = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.role !== "COORDINATOR") {
+    if (decoded.role !== "COORDINATOR" && decoded.role !== "LEAD") {
       return res.status(403).json({ success: false, message: "Unauthorized" });
     }
 
