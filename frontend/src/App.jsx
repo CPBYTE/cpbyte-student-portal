@@ -1,11 +1,13 @@
 import React from 'react'
 import UserLayout from './pages/UserLayout'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import UserDashboard from './pages/UserDashboard'
 import UserSchedule from './pages/UserSchedule'
 import UserSettings from './pages/UserSettings'
 import MarkAttendance from './pages/MarkAttendance'
 import LoginPage from './pages/LoginPage'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import UnauthProtected from './pages/UnauthProtected'
 import TrackerDashboard from './pages/TrackerDashboard'
 import TrackerManagement from './pages/TrackerManagement'
@@ -17,33 +19,19 @@ import Leaderboard from './pages/Leaderboard'
 import TargetUserDashboard from './pages/TargetUserDashboard'
 import { useEffect } from 'react'
 import { setAccessToken, axiosInstance } from '../src/lib/axios.js'
-import { useNavigate } from "react-router-dom";
 import { toast } from 'react-hot-toast'
 
 function App() {
   const navigate = useNavigate();
-
-
-  // useEffect(() => {
-  //   if (location.pathname === "/login" || location.pathname === "/register") return;
-
-  //   (async () => {
-  //     try {
-  //       const res = await axiosInstance.post("/auth/refresh", {}, { withCredentials: true });
-  //       console.log("Refresh response:", res);
-  //       setAccessToken(res.data.accessToken);
-  //     } catch (err) {
-  //       console.log("No refresh token or expired → redirecting to login",err);
-  //       toast.error("Session expired, please login again.")
-  //       navigate("/login");
-  //     }
-  //   })();
-  // }, [navigate, location.pathname]);
+  const location = useLocation();
 
   useEffect(() => {
     let isMounted = true;
 
     (async () => {
+      const publicRoutes = ["/login", "/forgot-password", "/reset-password"];
+      const isPublicRoute = publicRoutes.includes(location.pathname);
+
       try {
         const res = await axiosInstance.post("/auth/refresh", {}, { withCredentials: true });
         if (isMounted) {
@@ -52,8 +40,10 @@ function App() {
       } catch (err) {
         if (isMounted) {
           console.log("No refresh token or expired → redirecting to login", err);
-          toast.error("Session expired, please login again.");
-          navigate("/login");
+          if (!isPublicRoute) {
+            toast.error("Session expired, please login again.");
+            navigate("/login");
+          }
         }
       }
     })();
@@ -61,14 +51,14 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
-
-
+  }, [location.pathname]);
 
   return (
     <>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/"
           element={

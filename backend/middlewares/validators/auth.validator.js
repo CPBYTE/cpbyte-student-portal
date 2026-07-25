@@ -5,11 +5,9 @@ export const validateLoginRequest = asyncHandler(async (req, res, next) => {
   await checkSchema({
     library_id: {
       in: ["body"],
+      toString: true,
       notEmpty: {
         errorMessage: "Library ID is required",
-      },
-      isString: {
-        errorMessage: "Library ID must be a string",
       },
     },
     password: {
@@ -107,3 +105,60 @@ export const validateRegisterRequest = asyncHandler(async (req, res, next) => {
 
   next();
 });
+
+export const validateForgotPasswordRequest = asyncHandler(async (req, res, next) => {
+  await checkSchema({
+    identifier: {
+      in: ["body"],
+      toString: true,
+      notEmpty: {
+        errorMessage: "Library ID or Email is required",
+      },
+    },
+  }).run(req);
+
+  const schemaResult = validationResult(req);
+
+  if (!schemaResult.isEmpty()) {
+    return res
+      .status(400)
+      .json({ success: false, errors: schemaResult.array() });
+  }
+
+  next();
+});
+
+export const validateResetPasswordRequest = asyncHandler(async (req, res, next) => {
+  await checkSchema({
+    token: {
+      in: ["body"],
+      notEmpty: {
+        errorMessage: "Reset token is required",
+      },
+      isString: {
+        errorMessage: "Token must be a string",
+      },
+    },
+    newPassword: {
+      in: ["body"],
+      notEmpty: {
+        errorMessage: "New password is required",
+      },
+      isLength: {
+        options: { min: 6 },
+        errorMessage: "Password must be at least 6 characters long",
+      },
+    },
+  }).run(req);
+
+  const schemaResult = validationResult(req);
+
+  if (!schemaResult.isEmpty()) {
+    return res
+      .status(400)
+      .json({ success: false, errors: schemaResult.array() });
+  }
+
+  next();
+});
+

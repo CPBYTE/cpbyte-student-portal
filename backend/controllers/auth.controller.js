@@ -6,12 +6,20 @@ import { generateRefreshToken, hashToken, REFRESH_TOKEN_DAYS, generateAccessToke
 import prisma from "../config/db.js";
 import ResponseError from "../types/ResponseError.js";
 
+import crypto from "crypto";
+import { sendPasswordResetEmail } from "../utils/emailService.js";
+
 config();
 
 export const login = asyncHandler(async (req, res) => {
   const { library_id, password } = req.body;
+  const cleanLibraryId = String(library_id || "").trim();
 
-  const user = await prisma.user.findUnique({ where: { library_id } });
+  const user = await prisma.user.findFirst({
+    where: {
+      library_id: { equals: cleanLibraryId, mode: "insensitive" },
+    },
+  });
   if (!user) throw new ResponseError("User does not exist", 401);
 
   const isPasswordValid = await bcrypt.compare(password, user.password);
@@ -244,3 +252,114 @@ export const debugCookies = asyncHandler(async (req, res) => {
     message: 'Debug: cookies are being sent if they appear above'
   });
 });
+
+export const forgotPassword = asyncHandler(async (req, res) => {
+  const { identifier } = req.body;
+  const cleanIdentifier = String(identifier || "").trim();
+
+  const user = await prisma.user.findFirst({
+    where: {
+      OR: [
+        { email: { equals: cleanIdentifier, mode: "insensitive" } },
+        { library_id: { equals: cleanIdentifier, mode: "insensitive" } },
+      ],
+    },
+  });
+
+  if (!user) {
+    throw new ResponseError("No user found with the provided Library ID or Email", 404);
+  }
+
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: expiresAt,
+    },
+  });
+
+  const clientUrl = req.get("origin") || process.env.CLIENT_URL || "http://localhost:5173";
+  const resetLink = `${clientUrl}/reset-password?token=${resetToken}`;
+
+  const mailResult = await sendPasswordResetEmail(user.email, resetLink, user.name);
+
+  res.status(200).json({
+    success: true,
+    message: `Password reset instructions sent to ${user.email}.`,
+    email: user.email,
+    ...(process.env.NODE_ENV !== "production" && { resetToken, resetLink, mailResult }),
+  });
+});
+
+export const verifyResetToken = asyncHandler(async (req, res) => {
+  const { token } = req.query;
+  if (!token) throw new ResponseError("Token is required", 400);
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await prisma.user.findFirst({
+    where: {
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { gt: new Date() },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      library_id: true,
+    },
+  });
+
+  if (!user) {
+    throw new ResponseError("Invalid or expired reset token", 400);
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Token is valid",
+    data: user,
+  });
+});
+
+export const resetPassword = asyncHandler(async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await prisma.user.findFirst({
+    where: {
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { gt: new Date() },
+    },
+  });
+
+  if (!user) {
+    throw new ResponseError("Invalid or expired reset token", 400);
+  }
+
+  const hashedPassword = bcrypt.hashSync(newPassword, 10);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      password: hashedPassword,
+      resetPasswordToken: null,
+      resetPasswordExpires: null,
+    },
+  });
+
+  await prisma.refreshToken.updateMany({
+    where: { userId: user.id, revoked: false },
+    data: { revoked: true, revokedAt: new Date() },
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Password reset successful! You can now log in with your new password.",
+  });
+});
+

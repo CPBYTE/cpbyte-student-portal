@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { BookOpen, Lock, LogIn, Eye, EyeOff } from 'lucide-react';
 import logo from '../assets/CPBYTE_LOGO.jpg';
 import { useDispatch, useSelector } from 'react-redux';
@@ -112,7 +112,15 @@ function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300">Password</label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative mt-1">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                   <Lock className="w-5 h-5 text-gray-400" />

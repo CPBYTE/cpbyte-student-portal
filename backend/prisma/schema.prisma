@@ -28,6 +28,8 @@ model User {
   mentor_dsa  String?
   year        Int          @default(1)
   password    String
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   attendances Attendance[]
