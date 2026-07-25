@@ -38,22 +38,41 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
   // 1. If SMTP configurations are present in .env, send real email via configured SMTP
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
     try {
-      const port = Number(SMTP_PORT) || 465;
-      const isSecure = port === 465;
+      let transportOptions;
 
-      const transporter = nodemailer.createTransport({
-        host: SMTP_HOST,
-        port: port,
-        secure: isSecure,
-        family: 4, 
-        auth: {
-          user: SMTP_USER,
-          pass: SMTP_PASS,
-        },
-        connectionTimeout: 10000,
-        greetingTimeout: 5000,
-        socketTimeout: 10000,
-      });
+      if (SMTP_HOST.toLowerCase().includes("gmail")) {
+        transportOptions = {
+          service: "gmail",
+          family: 4,
+          auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASS,
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 5000,
+          socketTimeout: 10000,
+        };
+      } else {
+        let port = Number(SMTP_PORT) || 465;
+        if (port === 587) port = 465; 
+        const isSecure = port === 465;
+
+        transportOptions = {
+          host: SMTP_HOST,
+          port: port,
+          secure: isSecure,
+          family: 4,
+          auth: {
+            user: SMTP_USER,
+            pass: SMTP_PASS,
+          },
+          connectionTimeout: 10000,
+          greetingTimeout: 5000,
+          socketTimeout: 10000,
+        };
+      }
+
+      const transporter = nodemailer.createTransport(transportOptions);
 
       const mailOptions = {
         from: SMTP_FROM || `"CPBYTE Student Portal" <${SMTP_USER}>`,
