@@ -15,7 +15,7 @@ if (dns.setDefaultResultOrder) {
  * @param {string} userName - Name of user
  */
 export const sendPasswordResetEmail = async (email, resetLink, userName = "User") => {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, RESEND_API_KEY } = process.env;
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, RESEND_API_KEY, BREVO_API_KEY } = process.env;
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
@@ -35,7 +35,33 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
     </div>
   `;
 
-  // 1. Try Resend HTTPS REST API (Port 443 - Never blocked on Render Free Instance)
+  // 1. Try Brevo HTTPS REST API (Port 443 - 300 free emails/day to ANY recipient address, no domain verification required)
+  if (BREVO_API_KEY) {
+    try {
+      const res = await axios.post(
+        "https://api.brevo.com/v3/smtp/email",
+        {
+          sender: { name: "CPBYTE Student Portal", email: SMTP_USER || "cpbyteportal@gmail.com" },
+          to: [{ email: email, name: userName }],
+          subject: "Password Reset Request - CPBYTE Student Portal",
+          htmlContent: emailHtml,
+        },
+        {
+          headers: {
+            "api-key": BREVO_API_KEY.trim(),
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        }
+      );
+      console.log(`[Email] Reset email sent via Brevo HTTPS API to ${email} (MessageID: ${res.data?.messageId})`);
+      return { success: true, method: "brevo", messageId: res.data?.messageId };
+    } catch (brevoErr) {
+      console.error("[Email Error] Brevo API failed:", brevoErr.response?.data || brevoErr.message);
+    }
+  }
+
+  // 2. Try Resend HTTPS REST API (Port 443 - Note: In unverified test mode, Resend only allows sending to account owner email)
   if (RESEND_API_KEY) {
     try {
       const resendFrom = process.env.RESEND_FROM || "CPBYTE Portal <onboarding@resend.dev>";
