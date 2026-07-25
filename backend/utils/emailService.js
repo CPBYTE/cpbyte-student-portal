@@ -1,6 +1,11 @@
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
+import dns from "dns";
 dotenv.config();
+
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 /**
  * Sends a password reset email using nodemailer if SMTP configured,
@@ -40,13 +45,14 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
         host: SMTP_HOST,
         port: port,
         secure: isSecure,
+        family: 4, 
         auth: {
           user: SMTP_USER,
           pass: SMTP_PASS,
         },
-        connectionTimeout: 8000,
+        connectionTimeout: 10000,
         greetingTimeout: 5000,
-        socketTimeout: 8000,
+        socketTimeout: 10000,
       });
 
       const mailOptions = {
@@ -71,6 +77,7 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
       host: "smtp.ethereal.email",
       port: 587,
       secure: false,
+      family: 4,
       auth: {
         user: testAccount.user,
         pass: testAccount.pass,
