@@ -9,6 +9,8 @@
   "main": "app.js",
   "scripts": {
     "dev": "nodemon app.js",
+    "build": "prisma generate",
+    "postinstall": "prisma generate",
     "start": "node app.js"
   },
   "dependencies": {
