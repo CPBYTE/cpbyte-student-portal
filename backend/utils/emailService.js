@@ -38,10 +38,11 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
   // 1. Try Resend HTTPS REST API (Port 443 - Never blocked on Render Free Instance)
   if (RESEND_API_KEY) {
     try {
+      const resendFrom = process.env.RESEND_FROM || "CPBYTE Portal <onboarding@resend.dev>";
       const res = await axios.post(
         "https://api.resend.com/emails",
         {
-          from: SMTP_FROM || "CPBYTE Portal <onboarding@resend.dev>",
+          from: resendFrom,
           to: [email],
           subject: "Password Reset Request - CPBYTE Student Portal",
           html: emailHtml,
