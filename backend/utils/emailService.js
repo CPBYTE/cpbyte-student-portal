@@ -33,14 +33,20 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
   // 1. If SMTP configurations are present in .env, send real email via configured SMTP
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
     try {
+      const port = Number(SMTP_PORT) || 465;
+      const isSecure = port === 465;
+
       const transporter = nodemailer.createTransport({
         host: SMTP_HOST,
-        port: Number(SMTP_PORT) || 587,
-        secure: Number(SMTP_PORT) === 465,
+        port: port,
+        secure: isSecure,
         auth: {
           user: SMTP_USER,
           pass: SMTP_PASS,
         },
+        connectionTimeout: 8000,
+        greetingTimeout: 5000,
+        socketTimeout: 8000,
       });
 
       const mailOptions = {
@@ -69,6 +75,9 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
         user: testAccount.user,
         pass: testAccount.pass,
       },
+      connectionTimeout: 5000,
+      greetingTimeout: 3000,
+      socketTimeout: 5000,
     });
 
     const info = await testTransporter.sendMail({
