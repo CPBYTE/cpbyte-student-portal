@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import dns from "dns";
+import axios from "axios";
 dotenv.config();
 
 if (dns.setDefaultResultOrder) {
@@ -8,14 +9,13 @@ if (dns.setDefaultResultOrder) {
 }
 
 /**
- * Sends a password reset email using nodemailer if SMTP configured,
- * or via Ethereal test inbox / console log fallback.
+ * Sends a password reset email using Resend HTTPS API, Nodemailer SMTP, or fallback log.
  * @param {string} email - Destination email address
  * @param {string} resetLink - Password reset link with token
  * @param {string} userName - Name of user
  */
 export const sendPasswordResetEmail = async (email, resetLink, userName = "User") => {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
+  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM, RESEND_API_KEY } = process.env;
 
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px; background-color: #ffffff;">
@@ -34,6 +34,32 @@ export const sendPasswordResetEmail = async (email, resetLink, userName = "User"
       </p>
     </div>
   `;
+
+  // 1. Try Resend HTTPS REST API (Port 443 - Never blocked on Render Free Instance)
+  if (RESEND_API_KEY) {
+    try {
+      const res = await axios.post(
+        "https://api.resend.com/emails",
+        {
+          from: SMTP_FROM || "CPBYTE Portal <onboarding@resend.dev>",
+          to: [email],
+          subject: "Password Reset Request - CPBYTE Student Portal",
+          html: emailHtml,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${RESEND_API_KEY.trim()}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 10000,
+        }
+      );
+      console.log(`[Email] Reset email sent via Resend HTTPS API to ${email} (ID: ${res.data?.id})`);
+      return { success: true, method: "resend", id: res.data?.id };
+    } catch (resendErr) {
+      console.error("[Email Error] Resend API failed:", resendErr.response?.data || resendErr.message);
+    }
+  }
 
   // 1. If SMTP configurations are present in .env, send real email via configured SMTP
   if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
