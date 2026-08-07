@@ -16,6 +16,8 @@ import trackerRoutes from "./routes/Tracker.routes.js";
 import cors from "cors";
 
 import errorHandler from "./utils/errorHandler.js";
+import compressionMiddleware from "./middlewares/compression.js";
+import cacheControl from "./middlewares/cacheControl.js";
 
 import { refreshProfiles } from "./utils/cron.js";
 
@@ -25,7 +27,19 @@ const app = express();
 
 app.set('trust proxy', 1);
 
-app.use(helmet());
+// Enable ETag for conditional responses (304 Not Modified)
+app.set('etag', 'strong');
+
+// Response compression — must be first to compress all downstream output
+app.use(compressionMiddleware);
+
+// Helmet — tuned for API: disable browser-only headers that add latency/bytes
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: false,
+}));
 
 // rate limiting 
 const limiter = rateLimit({
@@ -43,13 +57,19 @@ cron.schedule(CRON_TIMING, async () => {
   console.log("==============Refreshed  profiles==============");
 });
 
-app.use(express.json({ limit: "20mb" }));
-const allowed = (process.env.ALLOWED_ORIGINS || "http://localhost:5173,https://cpbytestudentportal.netlify.app").split(',');
+// Reduced from 20mb → 5mb: still handles base64 image uploads,
+// but reduces buffer allocation pressure for the 99% of requests < 1KB
+app.use(express.json({ limit: "5mb" }));
+
+// Pre-compute allowed origins as a Set for O(1) lookups instead of Array.indexOf
+const allowed = new Set(
+  (process.env.ALLOWED_ORIGINS || "http://localhost:5173,https://cpbytestudentportal.netlify.app").split(',')
+);
 app.use(
   cors({
     origin: function (origin, callback) {
       if (!origin) return callback(null, true);
-      if (allowed.indexOf(origin) === -1) {
+      if (!allowed.has(origin)) {
         const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
         return callback(new Error(msg), false);
       }
@@ -60,6 +80,9 @@ app.use(
 );
 
 app.use(cookieParser());
+
+// Cache-Control headers for all routes
+app.use(cacheControl);
 
 app.use("/api/v1/auth", authRoutes);
 
