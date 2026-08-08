@@ -1,5 +1,6 @@
 import Redis from "ioredis";
 import { config } from "dotenv";
+import logger from "./logger.js";
 config();
 
 let redis = null;
@@ -43,23 +44,34 @@ if (process.env.REDIS_URL) {
 // Resilient wrapper to mimic standard ioredis operations
 const clientWrapper = {
   get: async (key) => {
+    let value = null;
     if (useMemoryFallback || !redis) {
       const entry = memoryStore.get(key);
-      if (!entry) return null;
-      if (entry.expiresAt && entry.expiresAt < Date.now()) {
-        memoryStore.delete(key);
-        return null;
+      if (entry) {
+        if (entry.expiresAt && entry.expiresAt < Date.now()) {
+          memoryStore.delete(key);
+        } else {
+          value = entry.value;
+        }
       }
-      return entry.value;
+    } else {
+      try {
+        value = await redis.get(key);
+      } catch (err) {
+        console.warn("Redis error on get, using memory store fallback:", err.message);
+        const entry = memoryStore.get(key);
+        if (entry) {
+          value = entry.value;
+        }
+      }
     }
-    try {
-      return await redis.get(key);
-    } catch (err) {
-      console.warn("Redis error on get, using memory store fallback:", err.message);
-      const entry = memoryStore.get(key);
-      if (!entry) return null;
-      return entry.value;
-    }
+
+    logger.info(`Cache.${value !== null ? "HIT" : "MISS"}`, {
+      key,
+      status: value !== null ? "HIT" : "MISS"
+    });
+
+    return value;
   },
   set: async (key, value, mode, duration) => {
     if (useMemoryFallback || !redis) {
