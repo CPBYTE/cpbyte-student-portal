@@ -16,6 +16,11 @@ let accessToken = null;
 export const setAccessToken=function(token) {
   accessToken = token;
   axiosInstance.defaults.headers.common['Authorization'] = token ? `Bearer ${token}` : undefined;
+  if (token) {
+    localStorage.setItem("token", token);
+  } else {
+    localStorage.removeItem("token");
+  }
 }
 
 // queue for concurrent refreshes
@@ -35,7 +40,7 @@ axiosInstance.interceptors.response.use(
   async error => {
     const originalRequest = error.config;
     
-    const noRefreshPaths = ['/auth/login', '/auth/register', '/auth/logout'];
+    const noRefreshPaths = ['/auth/login', '/auth/register', '/auth/logout', '/auth/refresh'];
     const isNoRefreshPath = noRefreshPaths.some(path => originalRequest.url?.includes(path));
     
     if (error.response && error.response.status === 401 && !originalRequest._retry && !isNoRefreshPath) {

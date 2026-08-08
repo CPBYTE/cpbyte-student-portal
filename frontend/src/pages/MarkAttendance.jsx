@@ -3,6 +3,7 @@ import SkeletonLoader from "../componenets/SkeletonLoader";
 import noimage from "../assets/noImage.webp";
 import { useDispatch, useSelector } from "react-redux";
 import { markAttendance, fetchOverallAttendance } from "../redux/slices/attendanceSlice";
+import { getMembersOfDomain } from "../redux/slices/getDomainUserSlice";
 import MarkAttendanceProtector from "../componenets/MarkAttendanceProtector";
 import { updateStatus } from "../redux/slices/checkStatus";
 import { toast } from "react-hot-toast";
@@ -42,6 +43,17 @@ const MarkAttendance = () => {
       dispatch(fetchOverallAttendance());
     }
   }, [dispatch, activeTab]);
+
+  useEffect(() => {
+    if (role === "COORDINATOR" || role === "LEAD") {
+      if (domain_dsa && !allMembers?.dsaMembers) {
+        dispatch(getMembersOfDomain({ domain: domain_dsa, domainType: "dsaMembers" }));
+      }
+      if (domain_dev && !allMembers?.devMembers) {
+        dispatch(getMembersOfDomain({ domain: domain_dev, domainType: "devMembers" }));
+      }
+    }
+  }, [dispatch, role, domain_dsa, domain_dev, allMembers]);
 
   const handleGlobalPresent = () => {
     if (activeSelector === "PRESENT") {

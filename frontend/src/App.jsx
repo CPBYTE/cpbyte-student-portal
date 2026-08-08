@@ -20,7 +20,6 @@ import TargetUserDashboard from './pages/TargetUserDashboard'
 import { useEffect } from 'react'
 import { setAccessToken, axiosInstance } from '../src/lib/axios.js'
 import { toast } from 'react-hot-toast'
-
 function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,7 +29,7 @@ function App() {
 
     (async () => {
       const publicRoutes = ["/login", "/forgot-password", "/reset-password"];
-      const isPublicRoute = publicRoutes.includes(location.pathname);
+      const isPublicRoute = publicRoutes.includes(window.location.pathname);
 
       try {
         const res = await axiosInstance.post("/auth/refresh", {}, { withCredentials: true });
@@ -51,7 +50,7 @@ function App() {
     return () => {
       isMounted = false;
     };
-  }, [location.pathname]);
+  }, [navigate]);
 
   return (
     <>
