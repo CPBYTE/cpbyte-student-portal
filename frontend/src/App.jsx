@@ -1,6 +1,6 @@
 import React from 'react'
 import UserLayout from './pages/UserLayout'
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import UserDashboard from './pages/UserDashboard'
 import UserSchedule from './pages/UserSchedule'
 import UserSettings from './pages/UserSettings'
@@ -17,41 +17,8 @@ import SkillManagement from './componenets/SkillManagement'
 import AddPlatforms from './componenets/AddPlatform'
 import Leaderboard from './pages/Leaderboard'
 import TargetUserDashboard from './pages/TargetUserDashboard'
-import { useEffect } from 'react'
-import { setAccessToken, axiosInstance } from '../src/lib/axios.js'
-import { toast } from 'react-hot-toast'
+
 function App() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    let isMounted = true;
-
-    (async () => {
-      const publicRoutes = ["/login", "/forgot-password", "/reset-password"];
-      const isPublicRoute = publicRoutes.includes(window.location.pathname);
-
-      try {
-        const res = await axiosInstance.post("/auth/refresh", {}, { withCredentials: true });
-        if (isMounted) {
-          setAccessToken(res.data.accessToken);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.log("No refresh token or expired → redirecting to login", err);
-          if (!isPublicRoute) {
-            toast.error("Session expired, please login again.");
-            navigate("/login");
-          }
-        }
-      }
-    })();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate]);
-
   return (
     <>
       <Routes>
