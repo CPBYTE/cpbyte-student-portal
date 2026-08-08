@@ -287,7 +287,7 @@ const MarkAttendance = () => {
           </div>
         </div>
 
-        <div className="w-full max-w-6xl relative z-10">
+        <div className="w-full max-w-6xl relative z-10 mt-24 sm:mt-20 md:mt-16">
           <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
               <div className="w-2 h-8 bg-[#0ec1e7] rounded-sm" />
