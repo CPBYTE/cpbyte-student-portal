@@ -2,6 +2,7 @@ import asyncHandler from 'express-async-handler';
 import prisma from '../config/db.js';
 import ResponseError from '../types/ResponseError.js';
 import cloudinary from '../config/cloudinary.js';
+import redis from '../config/redis.js';
 
 export const editUserProfile = asyncHandler(async (req, res) => {
     const { libId, data } = req.body;
@@ -28,6 +29,10 @@ export const editUserProfile = asyncHandler(async (req, res) => {
     if (!user) {
         throw new ResponseError('User not found', 404);
     }
+
+    // Invalidate profile cache
+    await redis.del(`user:profile:${user.id}`);
+
     res.status(200).json({
         success: true,
         data: user,
@@ -60,6 +65,10 @@ export const deleteUser = asyncHandler(async (req, res) => {
     if (!user) {
         throw new ResponseError('User not found', 404);
     }
+
+    // Invalidate profile cache
+    await redis.del(`user:profile:${user.id}`);
+
     res.status(200).json({
         success: true,
         data: user,

@@ -3,12 +3,43 @@ import prisma from "../config/db.js";
 import ResponseError from "../types/ResponseError.js";
 import axios from "axios";
 import cloudinary from "../config/cloudinary.js";
+import { refreshProfiles } from "../utils/cron.js";
+import redis from "../config/redis.js";
+
+const invalidateLeaderboardCache = async () => {
+  try {
+    await redis.delByPattern("leaderboard:*");
+  } catch (err) {
+    console.error("Failed to invalidate leaderboard cache:", err);
+  }
+};
+
+const invalidateTrackerCache = async (userId) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { library_id: true }
+    });
+    if (user && user.library_id) {
+      await redis.del(`tracker:dashboard:${user.library_id}`);
+    }
+    await invalidateLeaderboardCache();
+  } catch (err) {
+    console.error("Failed to invalidate tracker cache:", err);
+  }
+};
 
 export const getTrackerDashboard = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   if (!id) {
     throw new ResponseError("User ID is required", 400);
+  }
+
+  const cacheKey = `tracker:dashboard:${id}`;
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) {
+    return res.status(200).json(JSON.parse(cachedData));
   }
 
   const DashData = await prisma.user.findUnique({
@@ -37,6 +68,9 @@ export const getTrackerDashboard = asyncHandler(async (req, res) => {
       .json({ message: "No tracker data found for this user" });
   }
 
+  // Cache dashboard for 2 hours
+  await redis.set(cacheKey, JSON.stringify(DashData), "EX", 2 * 60 * 60);
+
   return res.status(200).json(DashData);
 });
 
@@ -57,6 +91,8 @@ export const addSkill = asyncHandler(async (req, res) => {
       },
     },
   });
+
+  await invalidateTrackerCache(req.userId);
 
   return res.status(200).json(updatedTracker);
 });
@@ -87,6 +123,8 @@ export const removeSkill = asyncHandler(async (req, res) => {
       skills: updatedSkills,
     },
   });
+
+  await invalidateTrackerCache(req.userId);
 
   return res.status(200).json(updatedTracker);
 });
@@ -182,6 +220,8 @@ export const addLeetCode = asyncHandler(async (req, res) => {
     },
   });
 
+  await invalidateTrackerCache(req.userId);
+
   return res.status(200).json(updatedTracker);
 });
 
@@ -199,14 +239,20 @@ export const addProject = asyncHandler(async (req, res) => {
     throw new ResponseError("Tracker not found for this user", 404);
   }
 
-  const {coverImage} = project
-  const result = await cloudinary.uploader.upload(coverImage);
+  const { coverImage } = project;
+  let coverImageUrl = coverImage;
 
-  if (!result) {
-          throw new ResponseError("Image upload failed", 500);
+  if (!coverImage.startsWith("http://") && !coverImage.startsWith("https://")) {
+    const result = await cloudinary.uploader.upload(coverImage);
+
+    if (!result) {
+      throw new ResponseError("Image upload failed", 500);
+    }
+
+    coverImageUrl = result.url;
   }
 
-  project.coverImage=result.url
+  project.coverImage = coverImageUrl;
 
   const addedProject = await prisma.projects.create({
     data: {
@@ -218,6 +264,8 @@ export const addProject = asyncHandler(async (req, res) => {
       },
     },
   });
+
+  await invalidateTrackerCache(req.userId);
 
   return res.status(201).json(addedProject);
 });
@@ -246,6 +294,15 @@ export const removeProject = asyncHandler(async (req, res) => {
       trackerId: deletedProject.trackerId,
     },
   });
+
+  // Invalidate cache
+  const trackerForProject = await prisma.trackerDashboard.findUnique({
+    where: { id: deletedProject.trackerId },
+    select: { userId: true }
+  });
+  if (trackerForProject && trackerForProject.userId) {
+    await invalidateTrackerCache(trackerForProject.userId);
+  }
 
   return res.status(200).json(newProject);
 });
@@ -305,79 +362,18 @@ export const addGitHub = asyncHandler(async (req, res) => {
     },
   });
 
+  await invalidateTrackerCache(req.userId);
+
   return res.status(200).json(updatedGithub);
 });
 
 export const refreshAll = asyncHandler(async (req, res) => {
-  const leetcodeEntries = await prisma.leetcode.findMany();
-  const githubEntries = await prisma.gitHub.findMany();
+  refreshProfiles().catch((err) => {
+    console.error("Error in background profile refresh:", err);
+  });
 
-  await Promise.all(leetcodeEntries.map(async (entry) => {
-    try {
-      const leetcode = await axios.get(
-        `https://leetcode.com/graphql?query=query%20{%20matchedUser(username:%22${entry.username}%22)%20{%20submissionCalendar%20submitStats%20{%20acSubmissionNum%20{%20count%20}%20}%20}%20}`
-      );
-
-      const matchedUser = leetcode.data.data.matchedUser;
-      if (!matchedUser) return;
-
-      const past5Days = getPastFiveDays();
-      const record = await check(past5Days, matchedUser.submissionCalendar);
-
-      await Promise.all([
-        prisma.leetcode.update({
-          where: { id: entry.id },
-          data: {
-            solvedProblems: matchedUser.submitStats.acSubmissionNum[0].count,
-            easy: matchedUser.submitStats.acSubmissionNum[1].count,
-            medium: matchedUser.submitStats.acSubmissionNum[2].count,
-            hard: matchedUser.submitStats.acSubmissionNum[3].count,
-            calendar: matchedUser.submissionCalendar,
-          },
-        }),
-        prisma.trackerDashboard.update({
-          where: { id: entry.trackerId },
-          data: { past5: record },
-        }),
-      ]);
-    } catch (err) {
-      console.error(`Failed for user: ${entry.username}`, err);
-    }
-  }));
-
-
-  await Promise.all(githubEntries.map(async (entry) => {
-    try {
-      const response = await axios.post(
-        "https://api.github.com/graphql",
-        {
-          query: `query {user(login: "${entry.username}") {contributionsCollection {contributionCalendar {totalContributions}}pullRequests {totalCount}repositories(privacy: PUBLIC) {totalCount}}}`,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-          },
-        }
-      );
-
-      const data = response.data.data.user;
-      if (!data) return;
-
-      await prisma.gitHub.update({
-        where: { id: entry.id },
-        data: {
-          contributions: data.contributionsCollection.contributionCalendar.totalContributions,
-          prs: data.pullRequests.totalCount,
-          repos: data.repositories.totalCount,
-        },
-      });
-    } catch (err) {
-      console.error(`GitHub fetch failed for user: ${entry.username}`, err);
-    }
-  }));
-
-  return res.status(200).json({
-    message: "All LeetCode and Github entries refreshed successfully",
+  return res.status(202).json({
+    message: "LeetCode and GitHub profile refresh started in the background",
   });
 });
 
@@ -385,6 +381,12 @@ export const getTop = asyncHandler(async (req, res) => {
   const limit = Math.max(1, parseInt(req.query.limit || "3", 10));
   const language = req.query.language;
   const year = req.query.year ? parseInt(req.query.year, 10) : undefined;
+
+  const cacheKey = `leaderboard:top:limit:${limit}:lang:${language || "all"}:year:${year || "all"}`;
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) {
+    return res.status(200).json(JSON.parse(cachedData));
+  }
 
   const whereFilter = {};
   if (language || year !== undefined) {
@@ -422,6 +424,9 @@ export const getTop = asyncHandler(async (req, res) => {
       leetcodeUsername: entry.username
     }));
 
+  // Cache leaderboard for 30 minutes
+  await redis.set(cacheKey, JSON.stringify(formatted), "EX", 30 * 60);
+
   return res.status(200).json(formatted);
 });
 
@@ -430,6 +435,12 @@ export const getAll = asyncHandler(async (req, res) => {
   const limit = Math.max(1, parseInt(req.query.limit || "10", 10));
   const language = req.query.language;
   const year = req.query.year ? parseInt(req.query.year, 10) : undefined;
+
+  const cacheKey = `leaderboard:all:page:${page}:limit:${limit}:lang:${language || "all"}:year:${year || "all"}`;
+  const cachedData = await redis.get(cacheKey);
+  if (cachedData) {
+    return res.status(200).json(JSON.parse(cachedData));
+  }
 
   const whereFilter = {};
   if (language || year !== undefined) {
@@ -472,5 +483,10 @@ export const getAll = asyncHandler(async (req, res) => {
 
   const withRank = formattedPage.map((entry, idx) => ({ ...entry, rank: page * limit + idx + 1 }));
 
-  return res.status(200).json({ users: withRank, total });
+  const result = { users: withRank, total };
+
+  // Cache leaderboard page for 30 minutes
+  await redis.set(cacheKey, JSON.stringify(result), "EX", 30 * 60);
+
+  return res.status(200).json(result);
 });

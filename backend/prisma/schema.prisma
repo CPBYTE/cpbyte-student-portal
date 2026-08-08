@@ -35,6 +35,10 @@ model User {
   attendances Attendance[]
   tracker     TrackerDashboard?
   refreshToken RefreshToken[]
+
+  @@index([domain_dev])
+  @@index([domain_dsa])
+  @@index([year])
 }
 
 model TrackerDashboard {
@@ -90,6 +94,8 @@ model Projects{
   tracker     TrackerDashboard @relation(fields: [trackerId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([trackerId])
 }
 
 model Attendance {
@@ -130,6 +136,8 @@ model AttendanceLog {
   domain    String  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([domain, date])
 }
 
 

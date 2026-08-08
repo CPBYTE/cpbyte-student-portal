@@ -16,12 +16,15 @@ import trackerRoutes from "./routes/Tracker.routes.js";
 import cors from "cors";
 
 import errorHandler from "./utils/errorHandler.js";
+import requestIdMiddleware from "./middlewares/requestId.js";
 
 import { refreshProfiles } from "./utils/cron.js";
 
 config();
 
 const app = express();
+
+app.use(requestIdMiddleware);
 
 app.set('trust proxy', 1);
 
@@ -36,7 +39,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-const CRON_TIMING = process.env.CRON_TIMING || "0 */2 * * *";
+const CRON_TIMING = process.env.CRON_TIMING || "0 */4 * * *";
 cron.schedule(CRON_TIMING, async () => {
   console.log("==============Refreshing profiles==============");
   await refreshProfiles();

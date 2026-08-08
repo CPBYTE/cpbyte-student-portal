@@ -8,9 +8,17 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 export const allAttendance = asyncHandler(async (req, res) => {
+  const page = Math.max(0, parseInt(req.query.page || "0", 10));
+  const limit = Math.max(1, parseInt(req.query.limit || "50", 10));
+
+  const total = await prisma.user.count({
+    where: { role: "USER" },
+  });
 
   const allUsers = await prisma.user.findMany({
     where: { role: "USER" },
+    skip: page * limit,
+    take: limit,
     include: { attendances: true },
   });
 
@@ -18,25 +26,28 @@ export const allAttendance = asyncHandler(async (req, res) => {
     throw new ResponseError("No attendance records found", 404);
   }
 
-  const record = await Promise.all(
-    allUsers.map(async (user) => ({
-      name: user.name,
-      library_id: user.library_id,
-      dsaAttendance: user.dsaAttendance,
-      devAttendance: user.devAttendance,
-      attendances: user.attendances ?
-        user.attendances.map((attendance) => ({
+  const record = allUsers.map((user) => ({
+    name: user.name,
+    library_id: user.library_id,
+    dsaAttendance: user.dsaAttendance,
+    devAttendance: user.devAttendance,
+    attendances: user.attendances
+      ? user.attendances.map((attendance) => ({
           date: attendance.date,
           status: attendance.status,
           subject: attendance.subject,
-        })) : [],
-    })))
+        }))
+      : [],
+  }));
 
   res.json({
     success: true,
     data: record,
-    message: "All attendance records fetched successfully",
-  })
+    total,
+    page,
+    limit,
+    message: "Attendance records fetched successfully",
+  });
 });
 
 export const markAttendance = asyncHandler(async (req, res) => {
@@ -51,10 +62,54 @@ export const markAttendance = asyncHandler(async (req, res) => {
   const libraryIds = responses.map(r => r.library_id);
   const users = await prisma.user.findMany({
     where: { library_id: { in: libraryIds } },
-    include: { attendances: true },
   });
 
   const userMap = new Map(users.map(u => [u.library_id, u]));
+  const userIds = users.map(u => u.id);
+
+  // Fetch only the existing records for this specific date and subject
+  const existingRecords = await prisma.attendance.findMany({
+    where: {
+      userId: { in: userIds },
+      date: istDate,
+      subject,
+    },
+  });
+  const existingRecordsMap = new Map(existingRecords.map(r => [r.userId, r]));
+
+  // Fetch counts of previous attendances grouped by user, subject, and status
+  const aggregates = await prisma.attendance.groupBy({
+    by: ["userId", "subject", "status"],
+    where: {
+      userId: { in: userIds },
+    },
+    _count: {
+      id: true,
+    },
+  });
+
+  const countMap = new Map();
+  for (const userId of userIds) {
+    countMap.set(userId, { dsaTotal: 0, dsaPresent: 0, devTotal: 0, devPresent: 0 });
+  }
+
+  for (const agg of aggregates) {
+    const counts = countMap.get(agg.userId);
+    if (!counts) continue;
+
+    const count = agg._count.id;
+    if (agg.subject === "DSA") {
+      counts.dsaTotal += count;
+      if (agg.status === "PRESENT") {
+        counts.dsaPresent += count;
+      }
+    } else if (agg.subject === "DEV") {
+      counts.devTotal += count;
+      if (agg.status === "PRESENT") {
+        counts.devPresent += count;
+      }
+    }
+  }
 
   const ops = [];
 
@@ -66,35 +121,51 @@ export const markAttendance = asyncHandler(async (req, res) => {
       throw new ResponseError(`User with Library_ID: ${library_id} not found`, 404);
     }
 
-    let Tdsa = 0, Tdev = 0, TdsaP = 0, TdevP = 0;
-
-    user.attendances.forEach(item => {
-      if (item.subject === "DSA") {
-        Tdsa++;
-        if (item.status === "PRESENT") TdsaP++;
-      } else if (item.subject === "DEV") {
-        Tdev++;
-        if (item.status === "PRESENT") TdevP++;
-      }
-    });
-
-    if (subject === "DSA") {
-      Tdsa++;
-      if (status === "PRESENT") TdsaP++;
-    } else {
-      Tdev++;
-      if (status === "PRESENT") TdevP++;
-    }
-
-    const dsaPercentage = Tdsa ? (TdsaP / Tdsa) * 100 : 0;
-    const devPercentage = Tdev ? (TdevP / Tdev) * 100 : 0;
-
     const finalStatus =
       status === "PRESENT"
         ? "PRESENT"
         : status === "ABSENT WITH REASON"
           ? "ABSENT_WITH_REASON"
           : "ABSENT_WITHOUT_REASON";
+
+    const userCounts = countMap.get(user.id);
+    let dsaTotal = userCounts.dsaTotal;
+    let dsaPresent = userCounts.dsaPresent;
+    let devTotal = userCounts.devTotal;
+    let devPresent = userCounts.devPresent;
+
+    const existingRecord = existingRecordsMap.get(user.id);
+
+    if (subject === "DSA") {
+      if (existingRecord) {
+        if (existingRecord.status === "PRESENT" && finalStatus !== "PRESENT") {
+          dsaPresent = Math.max(0, dsaPresent - 1);
+        } else if (existingRecord.status !== "PRESENT" && finalStatus === "PRESENT") {
+          dsaPresent += 1;
+        }
+      } else {
+        dsaTotal += 1;
+        if (finalStatus === "PRESENT") {
+          dsaPresent += 1;
+        }
+      }
+    } else {
+      if (existingRecord) {
+        if (existingRecord.status === "PRESENT" && finalStatus !== "PRESENT") {
+          devPresent = Math.max(0, devPresent - 1);
+        } else if (existingRecord.status !== "PRESENT" && finalStatus === "PRESENT") {
+          devPresent += 1;
+        }
+      } else {
+        devTotal += 1;
+        if (finalStatus === "PRESENT") {
+          devPresent += 1;
+        }
+      }
+    }
+
+    const dsaPercentage = dsaTotal ? (dsaPresent / dsaTotal) * 100 : 0;
+    const devPercentage = devTotal ? (devPresent / devTotal) * 100 : 0;
 
     ops.push(
       prisma.attendance.upsert({
@@ -160,13 +231,18 @@ export const memberOfDomain = asyncHandler(async (req, res) => {
     throw new ResponseError("Invalid domain", 400);
   }
 
+  const orConditions = [];
+  if (validDevDomains[domain]) {
+    orConditions.push({ domain_dev: validDevDomains[domain] });
+  }
+  if (validDsaDomains[domain]) {
+    orConditions.push({ domain_dsa: validDsaDomains[domain] });
+  }
+
   const users = await prisma.user.findMany({
     where: {
       role: "USER",
-      OR: [
-        { domain_dev: validDevDomains[domain] },
-        { domain_dsa: validDsaDomains[domain] },
-      ]
+      OR: orConditions,
     },
   });
 
