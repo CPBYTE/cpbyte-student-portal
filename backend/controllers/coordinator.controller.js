@@ -4,6 +4,7 @@ import prisma from "../config/db.js";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc.js";
 import timezone from "dayjs/plugin/timezone.js";
+import logger from "../config/logger.js";
 dayjs.extend(utc);
 dayjs.extend(timezone);
 
@@ -111,7 +112,9 @@ export const markAttendance = asyncHandler(async (req, res) => {
     }
   }
 
-  const ops = [];
+  const toCreate = [];
+  const attendanceUpdates = [];
+  const userUpdates = [];
 
   for (const response of responses) {
     const { library_id, status } = response;
@@ -167,26 +170,25 @@ export const markAttendance = asyncHandler(async (req, res) => {
     const dsaPercentage = dsaTotal ? (dsaPresent / dsaTotal) * 100 : 0;
     const devPercentage = devTotal ? (devPresent / devTotal) * 100 : 0;
 
-    ops.push(
-      prisma.attendance.upsert({
-        where: {
-          userId_date_subject: {
-            userId: user.id,
-            date: istDate,
-            subject,
-          },
-        },
-        update: { status: finalStatus },
-        create: {
-          userId: user.id,
-          subject,
-          date: istDate,
-          status: finalStatus,
-        },
-      })
-    );
+    if (existingRecord) {
+      if (existingRecord.status !== finalStatus) {
+        attendanceUpdates.push(
+          prisma.attendance.update({
+            where: { id: existingRecord.id },
+            data: { status: finalStatus },
+          })
+        );
+      }
+    } else {
+      toCreate.push({
+        userId: user.id,
+        subject,
+        date: istDate,
+        status: finalStatus,
+      });
+    }
 
-    ops.push(
+    userUpdates.push(
       prisma.user.update({
         where: { id: user.id },
         data: {
@@ -197,7 +199,18 @@ export const markAttendance = asyncHandler(async (req, res) => {
     );
   }
 
-  await prisma.$transaction(ops, { timeout: 20000 });
+  // Execute bulk insertions in a single query (critical to await to ensure records are saved)
+  if (toCreate.length > 0) {
+    await prisma.attendance.createMany({ data: toCreate });
+  }
+
+  // Trigger updates asynchronously in the background (Fire-and-Forget)
+  const backgroundOps = [...attendanceUpdates, ...userUpdates];
+  if (backgroundOps.length > 0) {
+    Promise.all(backgroundOps).catch(err => {
+      logger.error("Failed to execute background attendance updates:", { error: err.message });
+    });
+  }
 
   res.json({
     success: true,
