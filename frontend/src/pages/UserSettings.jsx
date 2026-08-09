@@ -14,6 +14,9 @@ export default function UserSettings() {
   const vantaRef = useRef(null);
   const vantaEffect = useRef(null); 
   const [disable,setDisable] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || noimage)
+  const [isUploading, setIsUploading] = useState(false)
+  const [uploadedUrl, setUploadedUrl] = useState("")
   const inputRef=useRef(null)
 
   useEffect(() => {
