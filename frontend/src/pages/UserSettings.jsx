@@ -6,6 +6,8 @@ import toast from "react-hot-toast"
 import { updateAvatar } from '../redux/slices/settingsSlice';
 import * as THREE from 'three';
 import ChangePass from '../componenets/ChangePass';
+import axios from 'axios';
+import { axiosInstance } from '../lib/axios';
 
 export default function UserSettings() { 
 
