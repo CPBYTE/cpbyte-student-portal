@@ -61,13 +61,13 @@ export const editAvatar = asyncHandler(async (req, res) => {
         }
 
         imageUrl = result.url;
+    }
 
-        if (user.avatar) {
-            const publicId = user.avatar.split('/').pop().split('.')[0];
-            cloudinary.uploader.destroy(publicId).catch((err) => {
-                console.error("Failed to delete old avatar from Cloudinary:", err);
-            });
-        }
+    if (user.avatar && user.avatar !== imageUrl) {
+        const publicId = user.avatar.split('/').pop().split('.')[0];
+        cloudinary.uploader.destroy(publicId).catch((err) => {
+            console.error("Failed to delete old avatar from Cloudinary:", err);
+        });
     }
 
     await prisma.user.update({
@@ -83,4 +83,22 @@ export const editAvatar = asyncHandler(async (req, res) => {
         message: "Avatar updated successfully",
         image: imageUrl,
     });
-})
+});
+
+export const getCloudinarySignature = asyncHandler(async (req, res) => {
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const signature = cloudinary.utils.api_sign_request(
+        {
+            timestamp: timestamp,
+            folder: "avatars",
+        },
+        process.env.CLOUDINARY_API_SECRET
+    );
+
+    res.json({
+        signature,
+        timestamp,
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+        apiKey: process.env.CLOUDINARY_API_KEY,
+    });
+});
