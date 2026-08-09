@@ -6,8 +6,6 @@ import toast from "react-hot-toast"
 import { updateAvatar } from '../redux/slices/settingsSlice';
 import * as THREE from 'three';
 import ChangePass from '../componenets/ChangePass';
-import axios from 'axios';
-import { axiosInstance } from '../lib/axios';
 
 export default function UserSettings() { 
 
@@ -16,9 +14,6 @@ export default function UserSettings() {
   const vantaRef = useRef(null);
   const vantaEffect = useRef(null); 
   const [disable,setDisable] = useState(false)
-  const [avatarUrl, setAvatarUrl] = useState(user?.avatar || noimage)
-  const [isUploading, setIsUploading] = useState(false)
-  const [uploadedUrl, setUploadedUrl] = useState("")
   const inputRef=useRef(null)
 
   useEffect(() => {
@@ -63,10 +58,6 @@ export default function UserSettings() {
     year: user.year, 
     libraryId: user.library_id
   };
-  const handleFileChange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -166,24 +157,6 @@ export default function UserSettings() {
         setDisable(false);
       });
   };
-
-    setDisable(true);
-    const toastId = toast.loading("Saving changes...");
-
-    dispatch(updateAvatar({ image: uploadedUrl }))
-      .then((res) => {
-        if (res.error) {
-          toast.error("Couldn't update profile pic!!", { id: toastId });
-        } else {
-          toast.success("Successfully updated profile pic!!", { id: toastId });
-          window.location.reload();
-        }
-      })
-      .finally(() => {
-        setDisable(false);
-      });
-  };
-
 
   return (
     <div ref={vantaRef} className="min-h-screen bg-[#070b0f] w-full pt-16 text-gray-200 p-4 md:p-8">
