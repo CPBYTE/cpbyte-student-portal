@@ -1,4 +1,4 @@
-import React, { useState,useEffect,useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { User, Lock, Mail, BookOpen, Calendar, CreditCard, Camera, Save } from 'lucide-react';
 import noimage from '../assets/noImage.webp';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,17 +9,17 @@ import ChangePass from '../componenets/ChangePass';
 import axios from 'axios';
 import { axiosInstance } from '../lib/axios';
 
-export default function UserSettings() { 
+export default function UserSettings() {
 
-  const user=useSelector(state=>state.dashboard.data)
+  const user = useSelector(state => state.dashboard.data)
   const dispatch = useDispatch();
   const vantaRef = useRef(null);
-  const vantaEffect = useRef(null); 
-  const [disable,setDisable] = useState(false)
+  const vantaEffect = useRef(null);
+  const [disable, setDisable] = useState(false)
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar || noimage)
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedUrl, setUploadedUrl] = useState("")
-  const inputRef=useRef(null)
+  const inputRef = useRef(null)
 
   useEffect(() => {
     let isMounted = true;
@@ -56,11 +56,11 @@ export default function UserSettings() {
       }
     };
   }, []);
-   
-  const fixed={
+
+  const fixed = {
     email: user.email,
     role: user.role,
-    year: user.year, 
+    year: user.year,
     libraryId: user.library_id
   };
   const handleFileChange = async (e) => {
@@ -70,7 +70,6 @@ export default function UserSettings() {
     setIsUploading(true);
     setDisable(true);
     const toastId = toast.loading("Uploading image to Cloudinary...");
-
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -175,7 +174,7 @@ export default function UserSettings() {
           <div className=" border border-gray-500 rounded-lg p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center">
               <div className="mr-2 bg-blue-500 p-2 rounded-lg" >
-              <User  size={20} />
+                <User size={20} />
               </div>
               Profile Picture
             </h2>
@@ -187,14 +186,14 @@ export default function UserSettings() {
                       <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#0ec1e7]" />
                     </div>
                   )}
-                  <img 
-                    src={avatarUrl} 
-                    alt="User avatar" 
+                  <img
+                    src={avatarUrl}
+                    alt="User avatar"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => inputRef.current?.click()}
                   className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 p-2 rounded-full transition-colors z-20"
                 >
@@ -202,49 +201,49 @@ export default function UserSettings() {
                 </button>
               </div>
               <form onSubmit={handleSaveAvatar} className='w-full'>
-              <div className="flex flex-col gap-2 mb-4">
-                <p className="text-gray-400">Upload a new profile picture</p>
-                <label htmlFor="image" className="bg-gray-800 hover:bg-gray-700 cursor-pointer text-white py-2 px-4 w-fit text-center rounded-md transition-colors" >
-                <input
-                  type="file"
-                  id="image"
-                  name="image"
-                  accept="image/*"
-                  className="hidden"
-                  ref={inputRef}
-                  onChange={handleFileChange}
-                />
-                  Choose Image
-                </label>
-                
-                <p className="text-sm  text-gray-500">Recommended: .jpeg, .png, .webp
-                </p>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  disabled={disable || !uploadedUrl}
-                  type="submit"
-                  className={`flex items-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition-colors cursor-pointer ${disable || !uploadedUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  <Save className="mr-2" size={18} />
-                  Save Changes
-                </button>
-              </div>
+                <div className="flex flex-col gap-2 mb-4">
+                  <p className="text-gray-400">Upload a new profile picture</p>
+                  <label htmlFor="image" className="bg-gray-800 hover:bg-gray-700 cursor-pointer text-white py-2 px-4 w-fit text-center rounded-md transition-colors" >
+                    <input
+                      type="file"
+                      id="image"
+                      name="image"
+                      accept="image/*"
+                      className="hidden"
+                      ref={inputRef}
+                      onChange={handleFileChange}
+                    />
+                    Choose Image
+                  </label>
+
+                  <p className="text-sm  text-gray-500">Recommended: .jpeg, .png, .webp
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    disabled={disable || !uploadedUrl}
+                    type="submit"
+                    className={`flex items-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition-colors cursor-pointer ${disable || !uploadedUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <Save className="mr-2" size={18} />
+                    Save Changes
+                  </button>
+                </div>
               </form>
             </div>
           </div>
           <div className=" border backdrop-blur-sm border-gray-500 rounded-lg p-6">
             <div className='mb-4 w-full'>
-            <div className="text-xl font-semibold flex items-center mb-2">
-              <div className="mr-2 bg-green-400 p-2 rounded-lg">
-              <Mail  size={20} />
+              <div className="text-xl font-semibold flex items-center mb-2">
+                <div className="mr-2 bg-green-400 p-2 rounded-lg">
+                  <Mail size={20} />
+                </div>
+                <span>Account Information</span>
               </div>
-              <span>Account Information</span>
-            </div>
-            <div className=" border-red-600 bg-red-900/20 flex items-center rounded-lg p-3">
-             <Lock size={16} className="text-red-400 mr-2" />
-            <p className='text-red-400 text-sm '>*Only Admin has the Access to Edit your Account information.</p>
-            </div>
+              <div className=" border-red-600 bg-red-900/20 flex items-center rounded-lg p-3">
+                <Lock size={16} className="text-red-400 mr-2" />
+                <p className='text-red-400 text-sm '>*Only Admin has the Access to Edit your Account information.</p>
+              </div>
             </div>
             <div className="space-y-4">
               <div>
@@ -263,7 +262,7 @@ export default function UserSettings() {
                   <Mail className="absolute left-2 top-[0.9rem] text-gray-400" size={16} />
                 </div>
               </div>
-              
+
               <div>
                 <label htmlFor="role" className="block text-sm text-gray-300 font-medium mb-1">
                   Role
@@ -284,7 +283,7 @@ export default function UserSettings() {
                   <BookOpen className="absolute left-2 top-[0.9rem] text-gray-400" size={16} />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label htmlFor="year" className="block text-sm  text-gray-300 font-medium mb-1">
@@ -303,7 +302,7 @@ export default function UserSettings() {
                     <Calendar className="absolute left-2 top-[0.9rem] text-gray-400" size={16} />
                   </div>
                 </div>
-                
+
                 <div>
                   <label htmlFor="libraryId" className="block text-sm text-gray-300 font-medium mb-1">
                     Library ID
@@ -331,8 +330,8 @@ export default function UserSettings() {
               </div>
               Change Password
             </h2>
-            
-            <ChangePass/>
+
+            <ChangePass />
           </div>
         </div>
       </div>

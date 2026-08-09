@@ -16,8 +16,7 @@ import trackerRoutes from "./routes/Tracker.routes.js";
 import cors from "cors";
 
 import errorHandler from "./utils/errorHandler.js";
-import compressionMiddleware from "./middlewares/compression.js";
-import cacheControl from "./middlewares/cacheControl.js";
+import requestIdMiddleware from "./middlewares/requestId.js";
 
 import { refreshProfiles } from "./utils/cron.js";
 
@@ -25,14 +24,14 @@ config();
 
 const app = express();
 
+app.use(requestIdMiddleware);
+
 app.set('trust proxy', 1);
 
 // Enable ETag for conditional responses (304 Not Modified)
 app.set('etag', 'strong');
 
 // Response compression — must be first to compress all downstream output
-app.use(compressionMiddleware);
-
 // Helmet — tuned for API: disable browser-only headers that add latency/bytes
 app.use(helmet({
   contentSecurityPolicy: false,
@@ -50,7 +49,7 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-const CRON_TIMING = process.env.CRON_TIMING || "0 */2 * * *";
+const CRON_TIMING = process.env.CRON_TIMING || "0 */4 * * *";
 cron.schedule(CRON_TIMING, async () => {
   console.log("==============Refreshing profiles==============");
   await refreshProfiles();
@@ -82,7 +81,6 @@ app.use(
 app.use(cookieParser());
 
 // Cache-Control headers for all routes
-app.use(cacheControl);
 
 app.use("/api/v1/auth", authRoutes);
 

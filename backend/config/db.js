@@ -1,20 +1,25 @@
 import { PrismaClient } from "@prisma/client";
+import logger from "./logger.js";
 
-// Singleton pattern prevents multiple PrismaClient instances
-// during hot-reloads in development (nodemon)
-const globalForPrisma = globalThis;
+const prismaRaw = new PrismaClient();
 
-const prisma =
-  globalForPrisma.__prisma ??
-  new PrismaClient({
-    // Only log queries in development, not in production
-    log: process.env.NODE_ENV !== "production" ? ["query"] : ["error"],
-    // Connection pool tuning for faster DB access
-    datasourceUrl: process.env.DATABASE_URL,
-  });
-
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.__prisma = prisma;
-}
+const prisma = prismaRaw.$extends({
+  query: {
+    async $allOperations({ model, operation, args, query }) {
+      const start = Date.now();
+      try {
+        const result = await query(args);
+        return result;
+      } finally {
+        const duration = Date.now() - start;
+        logger.info(`${model || "General"}.${operation}`, {
+          model,
+          operation,
+          durationMs: duration
+        });
+      }
+    }
+  }
+});
 
 export default prisma;
