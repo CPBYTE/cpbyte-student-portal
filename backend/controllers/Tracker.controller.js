@@ -68,6 +68,23 @@ export const getTrackerDashboard = asyncHandler(async (req, res) => {
       .json({ message: "No tracker data found for this user" });
   }
 
+  // Calculate dynamic rank based on solved problems count
+  if (DashData.tracker) {
+    let rank = 0;
+    if (DashData.tracker.leetcode) {
+      const solved = DashData.tracker.leetcode.solvedProblems;
+      const higherSolvedCount = await prisma.leetcode.count({
+        where: {
+          solvedProblems: {
+            gt: solved,
+          },
+        },
+      });
+      rank = higherSolvedCount + 1;
+    }
+    DashData.tracker.rank = rank;
+  }
+
   // Cache dashboard for 2 hours
   await redis.set(cacheKey, JSON.stringify(DashData), "EX", 2 * 60 * 60);
 
