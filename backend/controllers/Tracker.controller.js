@@ -47,23 +47,19 @@ export const getTrackerDashboard = asyncHandler(async (req, res) => {
     // Fetch only required fields to reduce payload
     prisma.user.findUnique({
       where: { library_id: id },
-      select: {
-        id: true,
-        library_id: true,
-        name: true,
-        email: true,
-        avatar: true,
-        year: true,
-        role: true,
+      include: {
         tracker: {
-          select: {
-            leetcode: {
-              select: { solvedProblems: true }
-            },
+          include: {
+            leetcode: true,
             github: true,
             projects: true
           }
         }
+      },
+      omit: {
+        password: true,
+        createdAt: true,
+        updatedAt: true,
       }
     }),
     // Rank: count of users with more solved problems (only if Leetcode data exists)
