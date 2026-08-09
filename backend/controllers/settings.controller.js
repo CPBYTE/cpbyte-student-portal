@@ -64,7 +64,7 @@ export const editAvatar = asyncHandler(async (req, res) => {
 
         if (user.avatar) {
             const publicId = user.avatar.split('/').pop().split('.')[0];
-            await cloudinary.uploader.destroy(publicId).catch((err) => {
+            cloudinary.uploader.destroy(publicId).catch((err) => {
                 console.error("Failed to delete old avatar from Cloudinary:", err);
             });
         }
