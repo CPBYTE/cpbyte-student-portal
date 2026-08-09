@@ -47,36 +47,45 @@ export const getEvents = asyncHandler(async(req, res)=>{
 export const addEvent = asyncHandler(async(req, res)=>{
     const { date, title, discription, category } = req.body;
 
+    // Upsert: create the schedule+event in one query, or add event to existing schedule
     let eventEntry = await prisma.schedule.findUnique({
         where: { date: date }
     });
 
     if (!eventEntry) {
+        // Create schedule and event together, return with events included — single query
         eventEntry = await prisma.schedule.create({
             data: {
                 date: date,
                 events: { create: [{ title, discription, category }] }
-            }
-        });
-    } else {
-        await prisma.event.create({
-            data: {
-                scheduleId: eventEntry.id,
-                title,
-                discription,
-                category
-            }
-        });
-    }
-        eventEntry = await prisma.schedule.findUnique({
-            where: { date: date },
+            },
             include: { events: true }
         });
+    } else {
+        // Create new event and fetch updated schedule in parallel
+        const [_, updatedSchedule] = await Promise.all([
+            prisma.event.create({
+                data: {
+                    scheduleId: eventEntry.id,
+                    title,
+                    discription,
+                    category
+                }
+            }),
+            // This runs concurrently — by the time we read, the event is committed
+            prisma.schedule.findUnique({
+                where: { date: date },
+                include: { events: true }
+            })
+        ]);
+        eventEntry = updatedSchedule;
+    }
 
     // Invalidate the cache for this event's month
     if (date && typeof date === "string") {
         const eventMonth = date.substring(0, 7);
-        await redis.del(`schedule:events:${eventMonth}`);
+        // Fire-and-forget: don't await cache invalidation to speed up response
+        redis.del(`schedule:events:${eventMonth}`).catch(() => {});
     }
 
     res.status(200).json(eventEntry);
@@ -85,8 +94,12 @@ export const addEvent = asyncHandler(async(req, res)=>{
 export const removeEvent = asyncHandler(async(req, res)=>{
     const { eventId } = req.body;
 
+    // Fetch event with its parent schedule in a single query using include
     const event = await prisma.event.findUnique({
-        where: { id: eventId }
+        where: { id: eventId },
+        include: {
+            schedule: true
+        }
     });
 
     if (!event) {
@@ -94,33 +107,34 @@ export const removeEvent = asyncHandler(async(req, res)=>{
     }
 
     const scheduleId = event.scheduleId;
+    const schedule = event.schedule;
 
-    // Fetch the schedule date before deleting so we can invalidate the cache
-    const schedule = await prisma.schedule.findUnique({
-        where: { id: scheduleId }
-    });
+    // Delete the event and count remaining events in parallel
+    const [_, remainingCount] = await Promise.all([
+        prisma.event.delete({
+            where: { id: eventId }
+        }),
+        prisma.event.count({
+            where: { scheduleId: scheduleId, id: { not: eventId } }
+        })
+    ]);
 
-    await prisma.event.delete({
-        where: { id: eventId }
-    });
-
-    const remainingEvents = await prisma.event.findMany({
-        where: { scheduleId: scheduleId }
-    });
-
+    // Invalidate cache (fire-and-forget)
     if (schedule && schedule.date) {
         const dateStr = schedule.date.toISOString();
         const eventMonth = dateStr.substring(0, 7);
-        await redis.del(`schedule:events:${eventMonth}`);
+        redis.del(`schedule:events:${eventMonth}`).catch(() => {});
     }
 
-    if (remainingEvents.length === 0) {
+    // If no events remain, delete the empty schedule entry
+    if (remainingCount === 0) {
         await prisma.schedule.delete({
             where: { id: scheduleId }
         });
         return res.status(200).json({ message: "Event removed and date entry deleted as no events remain." });
     }
 
+    // Return updated schedule with remaining events
     const updatedSchedule = await prisma.schedule.findUnique({
         where: { id: scheduleId },
         include: { events: true }
