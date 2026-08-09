@@ -230,6 +230,38 @@ const MarkAttendance = () => {
     return () => clearTimeout(timeout);
   }, [DSA, isMarked, subject, allMembers]);
 
+  const handleEditAttendance = () => {
+    const today = new Date();
+    const targetDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const targetSubject = DSA ? "DSA" : "DEV";
+    
+    const members = DSA ? allMembers?.dsaMembers : allMembers?.devMembers;
+    const initialStatuses = {};
+
+    if (Array.isArray(members)) {
+      members.forEach((student) => {
+        const todayRecord = student.attendances?.find((att) => {
+          const attDate = new Date(att.date);
+          return (
+            attDate.getFullYear() === targetDate.getFullYear() &&
+            attDate.getMonth() === targetDate.getMonth() &&
+            attDate.getDate() === targetDate.getDate() &&
+            att.subject === targetSubject
+          );
+        });
+
+        if (todayRecord) {
+          initialStatuses[student.library_id] = todayRecord.status;
+        } else {
+          initialStatuses[student.library_id] = "ABSENT_WITHOUT_REASON";
+        }
+      });
+    }
+
+    setSelectedStatus(initialStatuses);
+    setIsMarked(1);
+  };
+
   const filteredRequests = permissionRequests.filter((req) => {
     if (!req || !req.name || !req.library_id) return false;
     const query = searchQuery.toLowerCase();
@@ -494,7 +526,7 @@ const MarkAttendance = () => {
                 </div>
               )}
 
-              {isMarked === 2 && <AttendanceAlreadyMarked setIsMarked={setIsMarked} />}
+              {isMarked === 2 && <AttendanceAlreadyMarked setIsMarked={setIsMarked} onEdit={handleEditAttendance} />}
             </>
           )}
 
