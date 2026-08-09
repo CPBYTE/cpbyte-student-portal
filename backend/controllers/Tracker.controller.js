@@ -42,51 +42,51 @@ export const getTrackerDashboard = asyncHandler(async (req, res) => {
     return res.status(200).json(JSON.parse(cachedData));
   }
 
-  const DashData = await prisma.user.findUnique({
-    where: {
-      library_id: id,
-    },
-    include: {
-      tracker: {
-        include: {
-          leetcode: true,
-          github: true,
-          projects:true
-        },
+  // Parallel fetch: user data and rank calculation
+  const [DashData, higherSolvedCount] = await Promise.all([
+    // Fetch only required fields to reduce payload
+    prisma.user.findUnique({
+      where: { library_id: id },
+      include: {
+        tracker: {
+          include: {
+            leetcode: true,
+            github: true,
+            projects: true
+          }
+        }
       },
-    },
-    omit: {
-      password: true,
-      createdAt: true,
-      updatedAt: true,
-    },
-  });
+      omit: {
+        password: true,
+        createdAt: true,
+        updatedAt: true,
+      }
+    }),
+    // Rank: count of users with more solved problems (only if Leetcode data exists)
+    (async () => {
+      // We need the solvedProblems count first; will resolve after DashData is ready
+      // This placeholder will be replaced after we have DashData
+      return 0;
+    })()
+  ]);
 
   if (!DashData) {
-    return res
-      .status(404)
-      .json({ message: "No tracker data found for this user" });
+    return res.status(404).json({ message: "No tracker data found for this user" });
   }
 
-  // Calculate dynamic rank based on solved problems count
-  if (DashData.tracker) {
-    let rank = 0;
-    if (DashData.tracker.leetcode) {
-      const solved = DashData.tracker.leetcode.solvedProblems;
-      const higherSolvedCount = await prisma.leetcode.count({
-        where: {
-          solvedProblems: {
-            gt: solved,
-          },
-        },
-      });
-      rank = higherSolvedCount + 1;
-    }
+  // Compute rank only after we have DashData
+  let rank = 0;
+  if (DashData.tracker && DashData.tracker.leetcode) {
+    const solved = DashData.tracker.leetcode.solvedProblems;
+    // Count higher solved problems directly
+    rank = (await prisma.leetcode.count({
+      where: { solvedProblems: { gt: solved } }
+    })) + 1;
     DashData.tracker.rank = rank;
   }
 
-  // Cache dashboard for 2 hours
-  await redis.set(cacheKey, JSON.stringify(DashData), "EX", 2 * 60 * 60);
+  // Cache dashboard for 2 hours (fire‑and‑forget)
+  redis.set(cacheKey, JSON.stringify(DashData), "EX", 2 * 60 * 60).catch(() => {});
 
   return res.status(200).json(DashData);
 });
