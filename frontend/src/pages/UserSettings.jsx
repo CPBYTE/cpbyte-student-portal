@@ -58,46 +58,105 @@ export default function UserSettings() {
     year: user.year, 
     libraryId: user.library_id
   };
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const handleAvatar=(e)=>{
-    e.preventDefault();
-    if (disable) return;
+    setIsUploading(true);
     setDisable(true);
+    const toastId = toast.loading("Uploading image to Cloudinary...");
 
-    const toastId = toast.loading("Updating Avatar...")
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+
+        const MAX_WIDTH = 300;
+        const MAX_HEIGHT = 300;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(async (blob) => {
+          try {
+            // A. Fetch secure signature from backend
+            const token = localStorage.getItem("token");
+            const sigRes = await axiosInstance.get("/settings/cloudinarySignature", {
+              headers: { Authorization: `Bearer ${token}` }
+            });
+            const { signature, timestamp, cloudName, apiKey } = sigRes.data;
+
+            // B. Prepare FormData for direct Cloudinary upload
+            const formData = new FormData();
+            formData.append("file", blob, "avatar.jpg");
+            formData.append("api_key", apiKey);
+            formData.append("timestamp", timestamp);
+            formData.append("signature", signature);
+            formData.append("folder", "avatars");
+
+            // C. Upload file directly to Cloudinary
+            const cloudRes = await axios.post(
+              `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+              formData
+            );
+            const secureUrl = cloudRes.data.secure_url;
+
+            setAvatarUrl(secureUrl);
+            setUploadedUrl(secureUrl);
+            toast.success("Image uploaded! Click 'Save Changes' to apply.", { id: toastId });
+          } catch (err) {
+            console.error("Direct upload failed:", err);
+            toast.error("Failed to upload image to Cloudinary", { id: toastId });
+          } finally {
+            setIsUploading(false);
+            setDisable(false);
+          }
+        }, "image/jpeg", 0.7);
+      };
+    };
+  };
+
+  const handleSaveAvatar = (e) => {
     e.preventDefault();
-    const avatar = e.target[0].files[0];
-    if(!avatar){
-      toast.error("Avatar is required",{
-        id:toastId
-      })
-      setDisable(false)
-      return
+    if (!uploadedUrl) {
+      toast.error("Please select an image first!");
+      return;
     }
-      
-    const reader = new FileReader()
-    reader.readAsDataURL(avatar)
-    reader.onload=async()=>{
-      const image=reader.result;
-      dispatch(updateAvatar({image}))
-      .then((res)=>{
-        if(res.error)
-          toast.error("Couldn't upload pic!!",{
-            id:toastId
-          })
-        else
-          toast.success("Successfully uploaded pic!!",{
-            id:toastId
-          })
+    setDisable(true);
+    const toastId = toast.loading("Saving changes...");
+
+    dispatch(updateAvatar({ image: uploadedUrl }))
+      .then((res) => {
+        if (res.error) {
+          toast.error("Couldn't update profile pic!!", { id: toastId });
+        } else {
+          toast.success("Successfully updated profile pic!!", { id: toastId });
+          window.location.reload();
+        }
       })
       .finally(() => {
         setDisable(false);
-        if (inputRef.current) {
-        inputRef.current.value = '';
-      }
       });
-    }
-  }
+  };
 
   return (
     <div ref={vantaRef} className="min-h-screen bg-[#070b0f] w-full pt-16 text-gray-200 p-4 md:p-8">
@@ -117,21 +176,27 @@ export default function UserSettings() {
             </h2>
             <div className="flex flex-col items-center md:flex-row md:items-start gap-6">
               <div className="relative">
-                <div className="w-32 h-32 bg-gray-700 rounded-full overflow-hidden flex items-center justify-center">
+                <div className="w-32 h-32 bg-gray-700 rounded-full overflow-hidden flex items-center justify-center relative">
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#0ec1e7]" />
+                    </div>
+                  )}
                   <img 
-                    src={user.avatar||noimage} 
+                    src={avatarUrl} 
                     alt="User avatar" 
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <button 
                   type="button" 
-                  className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 p-2 rounded-full transition-colors"
+                  onClick={() => inputRef.current?.click()}
+                  className="absolute bottom-0 right-0 bg-blue-600 hover:bg-blue-700 p-2 rounded-full transition-colors z-20"
                 >
                   <Camera size={18} className="text-white" />
                 </button>
               </div>
-              <form onSubmit={handleAvatar} className='w-full'>
+              <form onSubmit={handleSaveAvatar} className='w-full'>
               <div className="flex flex-col gap-2 mb-4">
                 <p className="text-gray-400">Upload a new profile picture</p>
                 <label htmlFor="image" className="bg-gray-800 hover:bg-gray-700 cursor-pointer text-white py-2 px-4 w-fit text-center rounded-md transition-colors" >
@@ -142,18 +207,19 @@ export default function UserSettings() {
                   accept="image/*"
                   className="hidden"
                   ref={inputRef}
+                  onChange={handleFileChange}
                 />
                   Choose Image
                 </label>
                 
-                <p className="text-sm  text-gray-500">Recommended: .jpep, .png, .webp
+                <p className="text-sm  text-gray-500">Recommended: .jpeg, .png, .webp
                 </p>
               </div>
               <div className="flex justify-end">
                 <button
-                  disabled={disable}
+                  disabled={disable || !uploadedUrl}
                   type="submit"
-                  className={`flex items-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition-colors cursor-pointer ${disable ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`flex items-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition-colors cursor-pointer ${disable || !uploadedUrl ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <Save className="mr-2" size={18} />
                   Save Changes
