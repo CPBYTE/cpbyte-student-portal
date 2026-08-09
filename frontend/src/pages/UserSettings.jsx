@@ -63,6 +63,9 @@ export default function UserSettings() {
     year: user.year, 
     libraryId: user.library_id
   };
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
@@ -72,99 +75,6 @@ export default function UserSettings() {
     setDisable(true);
     const toastId = toast.loading("Uploading image to Cloudinary...");
 
-<<<<<<< Updated upstream
-    const toastId = toast.loading("Updating Avatar...")
-    const avatar = e.target[0].files[0];
-    if(!avatar){
-      toast.error("Avatar is required",{
-        id:toastId
-      })
-      setDisable(false)
-      return
-    }
-      
-    const reader = new FileReader();
-    reader.readAsDataURL(avatar);
-    reader.onload = (event) => {
-      const img = new Image();
-      img.src = event.target.result;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
-
-        // Compress to max 300x300 for avatar
-        const MAX_WIDTH = 300;
-        const MAX_HEIGHT = 300;
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        ctx.drawImage(img, 0, 0, width, height);
-
-        // Convert canvas image to Blob for direct binary upload
-        canvas.toBlob(async (blob) => {
-          try {
-            // A. Fetch secure signature from backend
-            const token = localStorage.getItem("token");
-            const sigRes = await axiosInstance.get("/settings/cloudinarySignature", {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            const { signature, timestamp, cloudName, apiKey } = sigRes.data;
-
-            // B. Prepare FormData for direct Cloudinary upload
-            const formData = new FormData();
-            formData.append("file", blob, "avatar.jpg");
-            formData.append("api_key", apiKey);
-            formData.append("timestamp", timestamp);
-            formData.append("signature", signature);
-            formData.append("folder", "avatars");
-
-            // C. Upload file directly to Cloudinary
-            const cloudRes = await axios.post(
-              `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-              formData
-            );
-            const secureUrl = cloudRes.data.secure_url;
-
-            // D. Send only the generated URL to backend database
-            dispatch(updateAvatar({ image: secureUrl }))
-              .then((res) => {
-                if (res.error) {
-                  toast.error("Couldn't update profile pic!!", { id: toastId });
-                } else {
-                  toast.success("Successfully updated profile pic!!", { id: toastId });
-                  window.location.reload();
-                }
-              })
-              .finally(() => {
-                setDisable(false);
-                if (inputRef.current) {
-                  inputRef.current.value = "";
-                }
-              });
-          } catch (err) {
-            console.error("Direct upload failed:", err);
-            toast.error("Failed to upload image directly to Cloudinary", { id: toastId });
-            setDisable(false);
-          }
-        }, "image/jpeg", 0.7);
-      };
-    };
-  }
-=======
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
@@ -256,7 +166,24 @@ export default function UserSettings() {
         setDisable(false);
       });
   };
->>>>>>> Stashed changes
+
+    setDisable(true);
+    const toastId = toast.loading("Saving changes...");
+
+    dispatch(updateAvatar({ image: uploadedUrl }))
+      .then((res) => {
+        if (res.error) {
+          toast.error("Couldn't update profile pic!!", { id: toastId });
+        } else {
+          toast.success("Successfully updated profile pic!!", { id: toastId });
+          window.location.reload();
+        }
+      })
+      .finally(() => {
+        setDisable(false);
+      });
+  };
+
 
   return (
     <div ref={vantaRef} className="min-h-screen bg-[#070b0f] w-full pt-16 text-gray-200 p-4 md:p-8">
