@@ -289,7 +289,6 @@ export const addProject = asyncHandler(async (req, res) => {
 
 export const removeProject = asyncHandler(async (req, res) => {
   const { projectId } = req.query;
-  console.log(projectId);
 
   if (!projectId) {
     throw new ResponseError("Project ID is required", 400);

@@ -80,6 +80,9 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       where: {
         role: "USER",
       },
+      omit: {
+        password: true,
+      },
     });
   
     if (!users || users.length === 0) {
@@ -99,6 +102,9 @@ export const getAllUsers = asyncHandler(async (req, res) => {
       where: {
         role: "COORDINATOR",
       },
+      omit: {
+        password: true,
+      },
     });
   
     if (!users || users.length === 0) {
@@ -117,6 +123,9 @@ export const getAllUsers = asyncHandler(async (req, res) => {
     const users = await prisma.user.findMany({
       where: {
         role: "LEAD",
+      },
+      omit: {
+        password: true,
       },
     });
   

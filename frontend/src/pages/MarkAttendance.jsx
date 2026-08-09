@@ -3,6 +3,7 @@ import SkeletonLoader from "../componenets/SkeletonLoader";
 import noimage from "../assets/noImage.webp";
 import { useDispatch, useSelector } from "react-redux";
 import { markAttendance, fetchOverallAttendance } from "../redux/slices/attendanceSlice";
+import { getMembersOfDomain } from "../redux/slices/getDomainUserSlice";
 import MarkAttendanceProtector from "../componenets/MarkAttendanceProtector";
 import { updateStatus } from "../redux/slices/checkStatus";
 import { toast } from "react-hot-toast";
@@ -42,6 +43,17 @@ const MarkAttendance = () => {
       dispatch(fetchOverallAttendance());
     }
   }, [dispatch, activeTab]);
+
+  useEffect(() => {
+    if (role === "COORDINATOR" || role === "LEAD") {
+      if (domain_dsa && !allMembers?.dsaMembers) {
+        dispatch(getMembersOfDomain({ domain: domain_dsa, domainType: "dsaMembers" }));
+      }
+      if (domain_dev && !allMembers?.devMembers) {
+        dispatch(getMembersOfDomain({ domain: domain_dev, domainType: "devMembers" }));
+      }
+    }
+  }, [dispatch, role, domain_dsa, domain_dev, allMembers]);
 
   const handleGlobalPresent = () => {
     if (activeSelector === "PRESENT") {
@@ -218,6 +230,38 @@ const MarkAttendance = () => {
     return () => clearTimeout(timeout);
   }, [DSA, isMarked, subject, allMembers]);
 
+  const handleEditAttendance = () => {
+    const today = new Date();
+    const targetDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const targetSubject = DSA ? "DSA" : "DEV";
+    
+    const members = DSA ? allMembers?.dsaMembers : allMembers?.devMembers;
+    const initialStatuses = {};
+
+    if (Array.isArray(members)) {
+      members.forEach((student) => {
+        const todayRecord = student.attendances?.find((att) => {
+          const attDate = new Date(att.date);
+          return (
+            attDate.getFullYear() === targetDate.getFullYear() &&
+            attDate.getMonth() === targetDate.getMonth() &&
+            attDate.getDate() === targetDate.getDate() &&
+            att.subject === targetSubject
+          );
+        });
+
+        if (todayRecord) {
+          initialStatuses[student.library_id] = todayRecord.status;
+        } else {
+          initialStatuses[student.library_id] = "ABSENT_WITHOUT_REASON";
+        }
+      });
+    }
+
+    setSelectedStatus(initialStatuses);
+    setIsMarked(1);
+  };
+
   const filteredRequests = permissionRequests.filter((req) => {
     if (!req || !req.name || !req.library_id) return false;
     const query = searchQuery.toLowerCase();
@@ -287,7 +331,7 @@ const MarkAttendance = () => {
           </div>
         </div>
 
-        <div className="w-full max-w-6xl relative z-10">
+        <div className="w-full max-w-6xl relative z-10 mt-24 sm:mt-20 md:mt-16">
           <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
               <div className="w-2 h-8 bg-[#0ec1e7] rounded-sm" />
@@ -482,7 +526,7 @@ const MarkAttendance = () => {
                 </div>
               )}
 
-              {isMarked === 2 && <AttendanceAlreadyMarked setIsMarked={setIsMarked} />}
+              {isMarked === 2 && <AttendanceAlreadyMarked setIsMarked={setIsMarked} onEdit={handleEditAttendance} />}
             </>
           )}
 

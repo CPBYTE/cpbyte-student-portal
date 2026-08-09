@@ -63,7 +63,6 @@ export default function UserSettings() {
     year: user.year, 
     libraryId: user.library_id
   };
-
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;

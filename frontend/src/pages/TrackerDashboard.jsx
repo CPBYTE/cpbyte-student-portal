@@ -5,7 +5,8 @@ import { Link } from "react-router-dom";
 import git from '../assets/github.webp';
 import { Star } from "lucide-react";
 import { IoStatsChartSharp } from "react-icons/io5";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+import { getTrackerDataOfUser } from "../redux/slices/TrackerSlice";
 import * as THREE from "three";
 import folder from "../assets/folder.png";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
@@ -18,9 +19,17 @@ import fork from "../assets/code-fork.png";
 import link from "../assets/Link.jpg";
 
 function TrackerDashboard() {
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.dashboard.data);
   const { data } = useSelector((state) => state.tracker);
   const [date, setDate] = useState("");
   const [showAll, setShowAll] = useState(false);
+
+  useEffect(() => {
+    if (user?.library_id && (!data || !data.name)) {
+      dispatch(getTrackerDataOfUser({ library_id: user.library_id }));
+    }
+  }, [dispatch, user, data]);
 
   const vantaRef = useRef(null);
   const vantaEffect = useRef(null);

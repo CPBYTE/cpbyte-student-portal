@@ -257,6 +257,9 @@ export const memberOfDomain = asyncHandler(async (req, res) => {
       role: "USER",
       OR: orConditions,
     },
+    omit: {
+      password: true,
+    },
   });
 
   const usersWithStatus = users.map(user => ({
@@ -281,8 +284,7 @@ export const checkStatus = asyncHandler(async (req, res) => {
 
   const istStart = dayjs(date, "YYYY-MM-DD").tz("Asia/Kolkata").startOf("day").toDate();
   const istEnd = dayjs(date, "YYYY-MM-DD").tz("Asia/Kolkata").endOf("day").toDate();
-  console.log(istStart);
-  console.log(istEnd);
+
 
   const status = await prisma.attendanceLog.findMany({
     where: {
