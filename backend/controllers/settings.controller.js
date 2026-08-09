@@ -19,12 +19,12 @@ export const editPass = asyncHandler(async (req, res) => {
             where: { id: req.userId },
         });
 
-        const isMatch = bcrypt.compareSync(oldPass, user.password);
+        const isMatch = await bcrypt.compare(oldPass, user.password);
         if (!isMatch) {
             throw new ResponseError("Old password is incorrect", 401);
         }
 
-        const hashedPassword = bcrypt.hashSync(newPass, 10);
+        const hashedPassword = await bcrypt.hash(newPass, 10);
 
         await prisma.user.update({
             where: { id: req.userId },

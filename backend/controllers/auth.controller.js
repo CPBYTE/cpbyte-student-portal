@@ -70,12 +70,8 @@ export const refresh = asyncHandler(async (req, res) => {
   try {
     // console.log(req);
     const rawToken = req.cookies?.refreshToken || req.body?.refreshToken;
-    console.log(rawToken);
     if (!rawToken) return res.status(401).json({ error: 'No refresh token' });
     const tHash = hashToken(rawToken);
-
-    console.log("Incoming refresh token:", rawToken);
-    console.log("Token hash:", tHash);
 
 
     const result = await prisma.$transaction(async (tx) => {
@@ -169,8 +165,7 @@ export const register = asyncHandler(async (req, res) => {
   };
   const randomPassword = "password123"
   // generateRandomPassword();
-  // console.log(randomPassword)
-  const hashedPassword = bcrypt.hashSync(randomPassword, 10);
+  const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
   const user = await prisma.user.create({
     data: {
