@@ -58,7 +58,7 @@ export const getTrackerDashboard = asyncHandler(async (req, res) => {
         tracker: {
           select: {
             leetcode: {
-              select: { solvedProblems: true, totalProblems: true }
+              select: { solvedProblems: true }
             },
             github: true,
             projects: true
