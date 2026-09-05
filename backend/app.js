@@ -62,7 +62,7 @@ app.use(express.json({ limit: "5mb" }));
 
 // Pre-compute allowed origins as a Set for O(1) lookups instead of Array.indexOf
 const allowed = new Set(
-  (process.env.ALLOWED_ORIGINS || "http://localhost:5173,https://cpbytestudentportal.netlify.app").split(',')
+  (process.env.ALLOWED_ORIGINS || "http://localhost:5173,https://cpbytestudentportal.netlify.app,https://portal.cpbyte.in").split(',')
 );
 app.use(
   cors({
